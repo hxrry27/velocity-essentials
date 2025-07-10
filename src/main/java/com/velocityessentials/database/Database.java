@@ -93,18 +93,7 @@ public class Database {
                 stmt.executeUpdate();
             }
             
-            // Add trigger to update last_seen on UPDATE (SQLite doesn't have ON UPDATE CURRENT_TIMESTAMP)
-            String updateTrigger = """
-                CREATE TRIGGER IF NOT EXISTS update_last_seen
-                AFTER UPDATE ON last_server
-                BEGIN
-                    UPDATE last_server SET last_seen = CURRENT_TIMESTAMP WHERE uuid = NEW.uuid;
-                END
-                """;
-            
-            try (PreparedStatement stmt = conn.prepareStatement(updateTrigger)) {
-                stmt.executeUpdate();
-            }
+            // SQLite doesn't support ON UPDATE CURRENT_TIMESTAMP, so we'll handle it in the Java code
             
         } catch (SQLException e) {
             plugin.getLogger().error("Failed to create database tables", e);
