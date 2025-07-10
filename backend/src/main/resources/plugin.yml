@@ -1,0 +1,6 @@
+name: VelocityEssentials-Backend
+version: ${project.version}
+main: com.velocityessentials.backend.VelocityEssentialsBackend
+api-version: "1.20"
+author: hxrry27
+description: Backend companion for VelocityEssentials

@@ -1,0 +1,29 @@
+# VelocityEssentials Configuration
+
+# Database settings
+database:
+  host: "localhost"
+  port: 3306
+  database: "velocityessentials"
+  username: "root"
+  password: "password"
+  
+# Server memory settings  
+server-memory:
+  enabled: true
+  fallback-server: "lobby"
+  first-join-server: "lobby"
+  remember-days: 30
+  
+# Discord integration
+discord:
+  enabled: false
+  webhook-url: ""
+  
+# Messages
+messages:
+  prefix: "<gray>[<aqua>VE<gray>]</aqua>"
+  no-permission: "{prefix} <red>You don't have permission!"
+  
+# Debug mode
+debug: false

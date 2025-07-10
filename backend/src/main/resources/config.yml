@@ -1,0 +1,7 @@
+# VelocityEssentials Backend Configuration
+
+# Server name - MUST match Velocity configuration
+server-name: "survival"
+
+# Debug mode
+debug: false

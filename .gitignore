@@ -1,0 +1,31 @@
+# Build files
+target/
+*.jar
+*.war
+*.ear
+
+# IDE files
+.idea/
+*.iml
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Maven
+dependency-reduced-pom.xml
+
+# Logs
+*.log
+
+# Local config (don't commit server-specific settings)
+config.local.yml
+
+# Test databases
+*.db
+*.sqlite
