@@ -4,6 +4,8 @@ import com.velocityessentials.VelocityEssentials;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -12,17 +14,23 @@ public class Database {
     private final VelocityEssentials plugin;
     private HikariDataSource dataSource;
     
+    // SQLite version - adjusted for SQLite syntax
     private static final String CREATE_TABLE = """
-        CREATE TABLE IF NOT EXISTS player_data (
+        CREATE TABLE IF NOT EXISTS last_server (
             uuid VARCHAR(36) PRIMARY KEY,
             username VARCHAR(16) NOT NULL,
-            last_server VARCHAR(50) NOT NULL,
-            last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            first_joined TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_last_seen (last_seen),
-            INDEX idx_username (username)
+            server_name VARCHAR(50) NOT NULL,
+            last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+            first_joined DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """;
+    
+    // Create index separately for SQLite
+    private static final String CREATE_INDEX_LAST_SEEN = 
+        "CREATE INDEX IF NOT EXISTS idx_last_seen ON last_server(last_seen)";
+    
+    private static final String CREATE_INDEX_USERNAME = 
+        "CREATE INDEX IF NOT EXISTS idx_username ON last_server(username)";
     
     public Database(VelocityEssentials plugin) {
         this.plugin = plugin;
@@ -30,51 +38,74 @@ public class Database {
     
     public boolean connect() {
         try {
+            // Create data directory if it doesn't exist
+            Path dataDir = plugin.getDataDirectory();
+            if (!Files.exists(dataDir)) {
+                Files.createDirectories(dataDir);
+            }
+            
+            // SQLite database file path
+            Path dbFile = dataDir.resolve("playerdata.db");
+            
             HikariConfig config = new HikariConfig();
-            config.setDriverClassName("com.mysql.cj.jdbc.Driver");
-            config.setJdbcUrl("jdbc:mysql://" + plugin.getConfig().getDbHost() + ":" + 
-                plugin.getConfig().getDbPort() + "/" + plugin.getConfig().getDbDatabase() + 
-                "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC");
-            config.setUsername(plugin.getConfig().getDbUsername());
-            config.setPassword(plugin.getConfig().getDbPassword());
+            config.setDriverClassName("org.sqlite.JDBC");
+            config.setJdbcUrl("jdbc:sqlite:" + dbFile.toAbsolutePath());
             
-            // Pool settings
-            config.setMaximumPoolSize(10);
-            config.setMinimumIdle(2);
-            config.setMaxLifetime(1800000); // 30 minutes
+            // SQLite specific settings
+            config.setMaximumPoolSize(1); // SQLite works best with single connection
+            config.setMinimumIdle(1);
+            config.setMaxLifetime(0); // Infinite lifetime
             config.setConnectionTimeout(10000); // 10 seconds
-            config.setLeakDetectionThreshold(60000); // 1 minute
             
-            // Performance settings
-            config.addDataSourceProperty("cachePrepStmts", "true");
-            config.addDataSourceProperty("prepStmtCacheSize", "250");
-            config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-            config.addDataSourceProperty("useServerPrepStmts", "true");
-            config.addDataSourceProperty("useLocalSessionState", "true");
-            config.addDataSourceProperty("rewriteBatchedStatements", "true");
-            config.addDataSourceProperty("cacheResultSetMetadata", "true");
-            config.addDataSourceProperty("cacheServerConfiguration", "true");
-            config.addDataSourceProperty("elideSetAutoCommits", "true");
-            config.addDataSourceProperty("maintainTimeStats", "false");
+            // SQLite performance settings
+            config.addDataSourceProperty("journal_mode", "WAL"); // Write-Ahead Logging
+            config.addDataSourceProperty("synchronous", "NORMAL");
+            config.addDataSourceProperty("cache_size", "-64000"); // 64MB cache
+            config.addDataSourceProperty("temp_store", "MEMORY");
             
             this.dataSource = new HikariDataSource(config);
             
             // Create tables
             createTables();
             
-            plugin.getLogger().info("Successfully connected to MySQL database");
+            plugin.getLogger().info("Successfully connected to SQLite database at: " + dbFile);
             return true;
             
         } catch (Exception e) {
-            plugin.getLogger().error("Failed to connect to MySQL database", e);
+            plugin.getLogger().error("Failed to connect to SQLite database", e);
             return false;
         }
     }
     
     private void createTables() {
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(CREATE_TABLE)) {
-            stmt.executeUpdate();
+        try (Connection conn = getConnection()) {
+            // Create table
+            try (PreparedStatement stmt = conn.prepareStatement(CREATE_TABLE)) {
+                stmt.executeUpdate();
+            }
+            
+            // Create indexes
+            try (PreparedStatement stmt = conn.prepareStatement(CREATE_INDEX_LAST_SEEN)) {
+                stmt.executeUpdate();
+            }
+            
+            try (PreparedStatement stmt = conn.prepareStatement(CREATE_INDEX_USERNAME)) {
+                stmt.executeUpdate();
+            }
+            
+            // Add trigger to update last_seen on UPDATE (SQLite doesn't have ON UPDATE CURRENT_TIMESTAMP)
+            String updateTrigger = """
+                CREATE TRIGGER IF NOT EXISTS update_last_seen
+                AFTER UPDATE ON last_server
+                BEGIN
+                    UPDATE last_server SET last_seen = CURRENT_TIMESTAMP WHERE uuid = NEW.uuid;
+                END
+                """;
+            
+            try (PreparedStatement stmt = conn.prepareStatement(updateTrigger)) {
+                stmt.executeUpdate();
+            }
+            
         } catch (SQLException e) {
             plugin.getLogger().error("Failed to create database tables", e);
         }

@@ -12,32 +12,33 @@ import java.util.concurrent.CompletableFuture;
 public class PlayerData {
     private final VelocityEssentials plugin;
     
+    // SQLite compatible queries
     private static final String GET_LAST_SERVER = """
-        SELECT last_server FROM player_data 
-        WHERE uuid = ? AND last_seen > DATE_SUB(NOW(), INTERVAL ? DAY)
+        SELECT server_name FROM last_server 
+        WHERE uuid = ? AND last_seen > datetime('now', '-' || ? || ' days')
         """;
     
     private static final String SAVE_PLAYER_DATA = """
-        INSERT INTO player_data (uuid, username, last_server) 
+        INSERT INTO last_server (uuid, username, server_name) 
         VALUES (?, ?, ?)
-        ON DUPLICATE KEY UPDATE 
-            username = VALUES(username), 
-            last_server = VALUES(last_server), 
+        ON CONFLICT(uuid) DO UPDATE SET 
+            username = excluded.username, 
+            server_name = excluded.server_name, 
             last_seen = CURRENT_TIMESTAMP
         """;
     
     private static final String CHECK_FIRST_JOIN = """
-        SELECT COUNT(*) as count FROM player_data WHERE uuid = ?
+        SELECT COUNT(*) as count FROM last_server WHERE uuid = ?
         """;
     
     private static final String DELETE_OLD_ENTRIES = """
-        DELETE FROM player_data 
-        WHERE last_seen < DATE_SUB(NOW(), INTERVAL ? DAY)
+        DELETE FROM last_server 
+        WHERE last_seen < datetime('now', '-' || ? || ' days')
         """;
     
     private static final String GET_PLAYER_INFO = """
-        SELECT username, last_server, last_seen, first_joined 
-        FROM player_data WHERE username = ?
+        SELECT username, server_name as last_server, last_seen, first_joined 
+        FROM last_server WHERE username = ?
         """;
     
     public PlayerData(VelocityEssentials plugin) {
@@ -54,7 +55,7 @@ public class PlayerData {
                 
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
-                        return rs.getString("last_server");
+                        return rs.getString("server_name");
                     }
                 }
             } catch (SQLException e) {

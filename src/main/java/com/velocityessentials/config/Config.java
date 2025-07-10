@@ -2,7 +2,6 @@ package com.velocityessentials.config;
 
 import com.velocityessentials.VelocityEssentials;
 import org.spongepowered.configurate.CommentedConfigurationNode;
-import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
 import java.io.IOException;
@@ -10,19 +9,11 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 
 public class Config {
     private final VelocityEssentials plugin;
     private final Path configPath;
     private CommentedConfigurationNode rootNode;
-    
-    // Database
-    private String dbHost;
-    private int dbPort;
-    private String dbDatabase;
-    private String dbUsername;
-    private String dbPassword;
     
     // Server Memory
     private boolean serverMemoryEnabled;
@@ -82,14 +73,6 @@ public class Config {
             
             rootNode = loader.load();
             
-            // Database settings
-            CommentedConfigurationNode dbNode = rootNode.node("database");
-            dbHost = dbNode.node("host").getString("localhost");
-            dbPort = dbNode.node("port").getInt(3306);
-            dbDatabase = dbNode.node("database").getString("velocityessentials");
-            dbUsername = dbNode.node("username").getString("root");
-            dbPassword = dbNode.node("password").getString("password");
-            
             // Server memory settings
             CommentedConfigurationNode memoryNode = rootNode.node("server-memory");
             serverMemoryEnabled = memoryNode.node("enabled").getBoolean(true);
@@ -122,19 +105,13 @@ public class Config {
             
             return true;
             
-        } catch (ConfigurateException | IOException e) {
+        } catch (IOException e) {
             plugin.getLogger().error("Failed to load configuration", e);
             return false;
         }
     }
     
-    // Getters
-    public String getDbHost() { return dbHost; }
-    public int getDbPort() { return dbPort; }
-    public String getDbDatabase() { return dbDatabase; }
-    public String getDbUsername() { return dbUsername; }
-    public String getDbPassword() { return dbPassword; }
-    
+    // Getters - removed all MySQL-related getters
     public boolean isServerMemoryEnabled() { return serverMemoryEnabled; }
     public String getFallbackServer() { return fallbackServer; }
     public String getFirstJoinServer() { return firstJoinServer; }

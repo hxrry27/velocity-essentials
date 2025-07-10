@@ -2,11 +2,9 @@
 
 # Database settings
 database:
-  host: "localhost"
-  port: 3306
-  database: "velocityessentials"
-  username: "root"
-  password: "password"
+  # SQLite database file will be created in the plugin folder
+  # No configuration needed! Just works out of the box.
+  type: "sqlite"
 
 # Server memory settings  
 server-memory:
