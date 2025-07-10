@@ -7,23 +7,60 @@ database:
   database: "velocityessentials"
   username: "root"
   password: "password"
-  
+
 # Server memory settings  
 server-memory:
+  # Enable server memory feature
   enabled: true
+  
+  # Server to send players to if their last server is unavailable
   fallback-server: "lobby"
+  
+  # Where to send first-time players
   first-join-server: "lobby"
+  
+  # How many days to remember player's last server
   remember-days: 30
   
+  # Servers that should not be remembered (temp servers, event servers, etc)
+  blacklisted-servers:
+    - "event"
+    - "temp"
+  
+  # Permission to bypass server memory (always go to fallback)
+  bypass-permission: "velocityessentials.bypass"
+
 # Discord integration
 discord:
+  # Enable Discord webhooks
   enabled: false
+  
+  # Webhook URL from Discord channel settings
   webhook-url: ""
   
-# Messages
-messages:
-  prefix: "<gray>[<aqua>VE<gray>]</aqua>"
-  no-permission: "{prefix} <red>You don't have permission!"
+  # Custom webhook appearance (leave empty for defaults)
+  username: "VelocityEssentials"
+  avatar-url: ""
   
-# Debug mode
+  # Show "joined for the first time!" messages
+  show-first-time: true
+  
+  # Which server should trigger first-time announcements
+  first-time-server: "lobby"
+
+# In-game messages
+messages:
+  # Enable custom in-game messages (requires backend plugin)
+  custom-enabled: true
+  
+  # Message prefix
+  prefix: "<gray>[<aqua>VE<gray>]</aqua>"
+  
+  # Message templates
+  no-permission: "{prefix} <red>You don't have permission!"
+  sending-to-last-server: "{prefix} <green>Sending you to your last server: <yellow>{server}"
+  sending-to-fallback: "{prefix} <yellow>Sending you to the fallback server"
+  first-join: "{prefix} <green>Welcome to the network!"
+
+# Debug mode - shows extra logging
 debug: false
