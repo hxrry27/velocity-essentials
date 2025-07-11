@@ -28,7 +28,6 @@ server-memory:
   # Permission to bypass server memory (always go to fallback)
   bypass-permission: "velocityessentials.bypass"
 
-# Discord integration
 discord:
   # Enable Discord webhooks
   enabled: false
@@ -45,6 +44,54 @@ discord:
   
   # Which server should trigger first-time announcements
   first-time-server: "lobby"
+  
+  # ===== CHAT RELAY SETTINGS =====
+  # Enable chat relay to Discord
+  chat-relay: true
+  
+  # Use player's Minecraft head as webhook avatar for each chat message
+  # If false, uses the main webhook avatar for all messages
+  use-player-head-for-chat: true
+  
+  # Show which server the message is from
+  chat-show-server: false
+  
+  # Format for server prefix (if enabled)
+  chat-server-format: "[{server}]"
+  
+  # Permission-based prefixes for chat
+  # Format: "permission.node": "prefix"
+  # First matching permission will be used
+  # You can use Discord markdown: ** for bold, __ for underline, etc.
+  chat-prefixes:
+    "group.owner": "**Owner**"
+    "group.admin": "**Admin**"
+    "group.moderator": "**Mod**"
+    "group.helper": "**Helper**"
+    "group.vip+": "**VIP+**"
+    "group.vip": "**VIP**"
+    "group.supporter": "**Supporter**"
+    # Add more as needed
+    # You can also use specific permissions:
+    "velocityessentials.prefix.developer": "**Dev**"
+    "velocityessentials.prefix.builder": "**Builder**"
+    
+  # Alternative format examples:
+  # Using emoji:
+  # chat-prefixes:
+  #   "group.owner": "👑 **Owner**"
+  #   "group.admin": "⚔️ **Admin**"
+  #   "group.vip": "⭐ **VIP**"
+  
+  # Using brackets:
+  # chat-prefixes:
+  #   "group.owner": "[**OWNER**]"
+  #   "group.admin": "[**ADMIN**]"
+  #   "group.vip": "[**VIP**]"
+  
+  # Using colors (Discord role colors):
+  # chat-prefixes:
+  #   "group.owner": "<@&ROLE_ID_HERE>"  # Will show as colored role
 
 # In-game messages
 messages:

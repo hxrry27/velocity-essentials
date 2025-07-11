@@ -8,7 +8,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Config {
     private final VelocityEssentials plugin;
@@ -38,6 +41,14 @@ public class Config {
     private String sendingToLastServer;
     private String sendingToFallback;
     private String firstJoinMessage;
+
+    // Discord Hook
+    private boolean chatRelayEnabled;
+    private String chatFormat;
+    private boolean usePlayerHeadForChat;
+    private Map<String, String> chatPrefixes;
+    private boolean chatShowServerPrefix;
+    private String chatServerFormat;
     
     // Other
     private boolean debug;
@@ -73,6 +84,8 @@ public class Config {
             
             rootNode = loader.load();
             
+
+
             // Server memory settings
             CommentedConfigurationNode memoryNode = rootNode.node("server-memory");
             serverMemoryEnabled = memoryNode.node("enabled").getBoolean(true);
@@ -84,13 +97,27 @@ public class Config {
             
             // Discord settings
             CommentedConfigurationNode discordNode = rootNode.node("discord");
+
+
             discordEnabled = discordNode.node("enabled").getBoolean(false);
             discordWebhookUrl = discordNode.node("webhook-url").getString("");
             discordUsername = discordNode.node("username").getString("VelocityEssentials");
             discordAvatarUrl = discordNode.node("avatar-url").getString("");
             showFirstTime = discordNode.node("show-first-time").getBoolean(true);
             firstTimeServer = discordNode.node("first-time-server").getString("lobby");
+            chatRelayEnabled = discordNode.node("chat-relay").getBoolean(false);
+            chatFormat = discordNode.node("chat-format").getString("[{server}] **{player}**: {message}");
+            usePlayerHeadForChat = discordNode.node("use-player-head-for-chat").getBoolean(false);
             
+            CommentedConfigurationNode prefixNode = discordNode.node("chat-prefixes");
+            chatPrefixes = new LinkedHashMap<>(); // LinkedHashMap preserves insertion order
+            if (!prefixNode.virtual()) {
+                // Get all children in the order they appear in config
+                prefixNode.childrenMap().forEach((key, value) -> {
+                    chatPrefixes.put(key.toString(), value.getString(""));
+                });
+            }
+
             // Message settings
             CommentedConfigurationNode messagesNode = rootNode.node("messages");
             customMessagesEnabled = messagesNode.node("custom-enabled").getBoolean(true);
@@ -99,6 +126,8 @@ public class Config {
             sendingToLastServer = messagesNode.node("sending-to-last-server").getString("{prefix} <green>Sending you to your last server: <yellow>{server}");
             sendingToFallback = messagesNode.node("sending-to-fallback").getString("{prefix} <yellow>Sending you to the fallback server");
             firstJoinMessage = messagesNode.node("first-join").getString("{prefix} <green>Welcome to the network!");
+            chatShowServerPrefix = discordNode.node("chat-show-server").getBoolean(false);
+            chatServerFormat = discordNode.node("chat-server-format").getString("[{server}]");
             
             // Debug
             debug = rootNode.node("debug").getBoolean(false);
@@ -125,6 +154,9 @@ public class Config {
     public String getDiscordAvatarUrl() { return discordAvatarUrl; }
     public boolean isShowFirstTime() { return showFirstTime; }
     public String getFirstTimeServer() { return firstTimeServer; }
+    public boolean isChatRelayEnabled() { return chatRelayEnabled; }
+    public String getChatFormat() { return chatFormat; }
+    public boolean isUsePlayerHeadForChat() { return usePlayerHeadForChat; }
     
     public boolean isCustomMessagesEnabled() { return customMessagesEnabled; }
     public String getMessagePrefix() { return messagePrefix; }
@@ -132,6 +164,9 @@ public class Config {
     public String getSendingToLastServer() { return sendingToLastServer; }
     public String getSendingToFallback() { return sendingToFallback; }
     public String getFirstJoinMessage() { return firstJoinMessage; }
+    public Map<String, String> getChatPrefixes() { return chatPrefixes; }
+    public boolean isChatShowServerPrefix() { return chatShowServerPrefix; }
+    public String getChatServerFormat() { return chatServerFormat; }
     
     public boolean isDebug() { return debug; }
     

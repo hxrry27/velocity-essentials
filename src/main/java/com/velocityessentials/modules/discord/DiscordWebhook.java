@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class DiscordWebhook {
@@ -134,6 +135,68 @@ public class DiscordWebhook {
                 plugin.getLogger().error("Failed to send Discord webhook", e);
             }
         });
+    }
+
+    public void sendChatMessage(Player player, String serverName, String message) {
+        if (!plugin.getConfig().isDiscordEnabled()) return;
+        
+        // Escape Discord formatting/mentions
+        String safeMessage = message
+            .replace("@everyone", "@\u200beveryone")
+            .replace("@here", "@\u200bhere");
+        
+        // Get prefix based on permissions
+        String prefix = "";
+        Map<String, String> prefixMap = plugin.getConfig().getChatPrefixes();
+        
+        // Check permissions in order (first match wins)
+        for (Map.Entry<String, String> entry : prefixMap.entrySet()) {
+            if (player.hasPermission(entry.getKey())) {
+                prefix = entry.getValue();
+                break; // Use first matching permission
+            }
+        }
+        
+        // Build the message
+        StringBuilder messageBuilder = new StringBuilder();
+        
+        // Add server prefix if enabled
+        if (plugin.getConfig().isChatShowServerPrefix()) {
+            String serverPrefix = plugin.getConfig().getChatServerFormat()
+                .replace("{server}", serverName.toUpperCase());
+            messageBuilder.append(serverPrefix).append(" ");
+        }
+        
+        // Add player prefix if they have one
+        if (!prefix.isEmpty()) {
+            messageBuilder.append(prefix).append(" ");
+        }
+        
+        // Add username and message
+        messageBuilder.append(player.getUsername()).append(": ").append(safeMessage);
+        
+        // Build JSON
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        
+        // Webhook identity
+        if (!plugin.getConfig().getDiscordUsername().isEmpty()) {
+            json.append("\"username\":\"").append(escapeJson(plugin.getConfig().getDiscordUsername())).append("\",");
+        }
+        
+        // Use player head as avatar if enabled
+        if (plugin.getConfig().isUsePlayerHeadForChat()) {
+            String uuid = player.getUniqueId().toString().replace("-", "");
+            String avatarUrl = "https://mc-heads.net/avatar/" + uuid + "/100";
+            json.append("\"avatar_url\":\"").append(avatarUrl).append("\",");
+        } else if (!plugin.getConfig().getDiscordAvatarUrl().isEmpty()) {
+            json.append("\"avatar_url\":\"").append(escapeJson(plugin.getConfig().getDiscordAvatarUrl())).append("\",");
+        }
+        
+        json.append("\"content\":\"").append(escapeJson(messageBuilder.toString())).append("\"");
+        json.append("}");
+        
+        sendWebhook(json.toString());
     }
     
     private String escapeJson(String input) {
