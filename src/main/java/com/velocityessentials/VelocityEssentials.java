@@ -14,7 +14,7 @@ import com.velocityessentials.commands.MainCommand;
 import com.velocityessentials.config.Config;
 import com.velocityessentials.database.Database;
 import com.velocityessentials.database.PlayerData;
-import com.velocityessentials.listeners.ChatListener;
+import com.velocityessentials.listeners.PluginMessageListener;
 import com.velocityessentials.listeners.PlayerListener;
 import com.velocityessentials.listeners.ServerSwitchListener;
 import com.velocityessentials.modules.discord.DiscordWebhook;
@@ -92,8 +92,8 @@ public class VelocityEssentials {
         // Register listeners
         server.getEventManager().register(this, new PlayerListener(this));
         server.getEventManager().register(this, new ServerSwitchListener(this));
-        server.getEventManager().register(this, new ChatListener(this));
-        
+        server.getEventManager().register(this, new PluginMessageListener(this));
+
         // Register commands
         CommandMeta commandMeta = server.getCommandManager()
             .metaBuilder("velocityessentials")

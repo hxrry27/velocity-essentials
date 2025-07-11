@@ -15,6 +15,8 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
+import me.clip.placeholderapi.PlaceholderAPI;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,8 +47,14 @@ public class VelocityEssentialsBackend extends JavaPlugin implements PluginMessa
         // Schedule cleanup task
         getServer().getScheduler().runTaskTimerAsynchronously(this, this::cleanupSuppressed, 100L, 100L);
         
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") == null) {
+        getLogger().warning("PlaceholderAPI not found! Chat formatting will not work properly.");
+        }
+
         getLogger().info("VelocityEssentials Backend enabled!");
         getLogger().info("Server name: " + serverName);
+
+
     }
     
     @Override
@@ -56,6 +64,46 @@ public class VelocityEssentialsBackend extends JavaPlugin implements PluginMessa
         getLogger().info("VelocityEssentials Backend disabled!");
     }
     
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerChat(AsyncPlayerChatEvent event) {
+        // Don't process if PlaceholderAPI isn't available
+        if (!Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) return;
+        
+        Player player = event.getPlayer();
+        
+        // Get formatted prefix from PlaceholderAPI
+        String prefix = PlaceholderAPI.setPlaceholders(player, "%playercustomisation_prefix%");
+        
+        // Clean up prefix for Discord (remove color codes)
+        prefix = ChatColor.stripColor(prefix).trim();
+        
+        // Convert [Owner] to **Owner** for Discord
+        if (prefix.startsWith("[") && prefix.endsWith("]")) {
+            prefix = "**" + prefix.substring(1, prefix.length() - 1) + "**";
+        } else if (!prefix.isEmpty()) {
+            prefix = "**" + prefix + "**";
+        }
+        
+        // Send to Velocity
+        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        out.writeUTF("chat");
+        out.writeUTF(player.getUniqueId().toString());
+        out.writeUTF(player.getName());
+        out.writeUTF(prefix);
+        out.writeUTF(event.getMessage());
+        out.writeUTF(getConfig().getString("server-name", "unknown"));
+        
+        // Send to any online player (plugin messaging requires a player)
+        if (!Bukkit.getOnlinePlayers().isEmpty()) {
+            Bukkit.getOnlinePlayers().iterator().next()
+                .sendPluginMessage(this, CHANNEL, out.toByteArray());
+            
+            if (debug) {
+                getLogger().info("Sent chat to Velocity: " + prefix + " " + player.getName() + ": " + event.getMessage());
+            }
+        }
+    }
+
     private void loadConfiguration() {
         FileConfiguration config = getConfig();
         serverName = config.getString("server-name", "unknown");

@@ -198,6 +198,57 @@ public class DiscordWebhook {
         
         sendWebhook(json.toString());
     }
+
+    public void sendFormattedChatMessage(Player player, String serverName, String prefix, String message) {
+        if (!plugin.getConfig().isDiscordEnabled()) return;
+        if (!plugin.getConfig().isChatRelayEnabled()) return;
+        
+        // Escape Discord mentions
+        String safeMessage = message
+            .replace("@everyone", "@\u200beveryone")
+            .replace("@here", "@\u200bhere");
+        
+        // Build the message
+        StringBuilder messageBuilder = new StringBuilder();
+        
+        // Add server prefix if enabled
+        if (plugin.getConfig().isChatShowServerPrefix()) {
+            String serverPrefix = plugin.getConfig().getChatServerFormat()
+                .replace("{server}", serverName.toUpperCase());
+            messageBuilder.append(serverPrefix).append(" ");
+        }
+        
+        // Add the pre-formatted prefix from backend
+        if (!prefix.isEmpty()) {
+            messageBuilder.append(prefix).append(" ");
+        }
+        
+        // Add username and message
+        messageBuilder.append(player.getUsername()).append(": ").append(safeMessage);
+        
+        // Build JSON
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+        
+        // Webhook identity
+        if (!plugin.getConfig().getDiscordUsername().isEmpty()) {
+            json.append("\"username\":\"").append(escapeJson(plugin.getConfig().getDiscordUsername())).append("\",");
+        }
+        
+        // Use player head as avatar if enabled
+        if (plugin.getConfig().isUsePlayerHeadForChat()) {
+            String uuid = player.getUniqueId().toString().replace("-", "");
+            String avatarUrl = "https://mc-heads.net/avatar/" + uuid + "/100";
+            json.append("\"avatar_url\":\"").append(avatarUrl).append("\",");
+        } else if (!plugin.getConfig().getDiscordAvatarUrl().isEmpty()) {
+            json.append("\"avatar_url\":\"").append(escapeJson(plugin.getConfig().getDiscordAvatarUrl())).append("\",");
+        }
+        
+        json.append("\"content\":\"").append(escapeJson(messageBuilder.toString())).append("\"");
+        json.append("}");
+        
+        sendWebhook(json.toString());
+    }
     
     private String escapeJson(String input) {
         if (input == null) return "";
