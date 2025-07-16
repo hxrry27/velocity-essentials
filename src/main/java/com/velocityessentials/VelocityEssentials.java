@@ -13,10 +13,8 @@ import com.velocitypowered.api.command.CommandMeta;
 import com.velocityessentials.commands.EventCommand;
 import com.velocityessentials.commands.MainCommand;
 import com.velocityessentials.config.Config;
-import com.velocityessentials.config.StatsConfig;
 import com.velocityessentials.database.Database;
 import com.velocityessentials.database.PlayerData;
-import com.velocityessentials.database.StatsDatabase;
 import com.velocityessentials.listeners.PluginMessageListener;
 import com.velocityessentials.listeners.PlayerListener;
 import com.velocityessentials.listeners.ServerSwitchListener;
@@ -120,7 +118,7 @@ public class VelocityEssentials {
             .aliases("ve", "vess")
             .plugin(this)
             .build();
-            
+
         CommandManager commandManager = proxy.getCommandManager();
         commandManager.register(
             commandManager.metaBuilder("ve")

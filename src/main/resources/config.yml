@@ -107,5 +107,58 @@ messages:
   sending-to-fallback: "{prefix} <yellow>Sending you to the fallback server"
   first-join: "{prefix} <green>Welcome to the network!"
 
+# Stats System Configuration
+stats:
+  # Enable the stats system
+  enabled: true
+  
+  # Update interval in minutes (how often to read stat files)
+  # Default: 10 minutes (recommended)
+  update-interval: 10
+  
+  # Server stat paths
+  # Map each server name to its stats directory
+  # The path should point to the world/stats directory
+  servers:
+    survival: "/servers/survival/world/stats"
+    creative: "/servers/creative/world/stats"
+    resource: "/servers/resource/world/stats"
+    # Add more servers as needed:
+    # skyblock: "/servers/skyblock/world/stats"
+  
+  # API Configuration (for web integration)
+  api:
+    # Enable REST API
+    enabled: true
+    
+    # Port to listen on
+    port: 8080
+    
+    # Bind address (0.0.0.0 for all interfaces, 127.0.0.1 for localhost only)
+    bind: "0.0.0.0"
+    
+    # API authentication key
+    # CHANGE THIS to something secure!
+    auth-key: "your-secret-api-key-here"
+  
+  # Awards/Achievements Processing
+  # These can be processed here or by your website
+  awards:
+    # Process awards in the plugin
+    process-locally: false
+    
+    # If processing locally, how often to calculate awards (minutes)
+    calculation-interval: 60
+    
+    # Award categories to track (similar to MinecraftStats)
+    categories:
+      - "distance"
+      - "time"
+      - "damage"
+      - "mine"
+      - "craft"
+      - "kill"
+      - "death"
+
 # Debug mode - shows extra logging
 debug: false
