@@ -132,18 +132,26 @@ public class StatsSystem {
     
     private void loadConfiguration() {
         // Load server paths from config
-        // Example: survival -> /servers/survival/world/stats
-        serverStatsPaths.put("survival", Path.of("/servers/survival/world/stats"));
-        serverStatsPaths.put("creative", Path.of("/servers/creative/world/stats"));
-        serverStatsPaths.put("resource", Path.of("/servers/resource/world/stats"));
+        Map<String, String> configPaths = plugin.getConfig().getStatsServerPaths();
+        
+        for (Map.Entry<String, String> entry : configPaths.entrySet()) {
+            String serverName = entry.getKey();
+            String pathStr = entry.getValue();
+            
+            if (!pathStr.isEmpty()) {
+                Path path = Path.of(pathStr);
+                serverStatsPaths.put(serverName, path);
+                plugin.getLogger().info("Registered stats path for " + serverName + ": " + path);
+            }
+        }
         
         plugin.getLogger().info("Loaded stats paths for " + serverStatsPaths.size() + " servers");
     }
     
     private void startProcessing() {
-        int updateInterval = 10; // minutes
+        int updateInterval = plugin.getConfig().getStatsUpdateInterval();
         
-        // Initial delay of 1 minute, then every 10 minutes
+        // Initial delay of 1 minute, then every X minutes
         scheduler.scheduleAtFixedRate(
             this::processAllStats,
             1,

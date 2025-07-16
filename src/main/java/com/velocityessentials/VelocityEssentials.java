@@ -51,7 +51,6 @@ public class VelocityEssentials {
     // Modules
     private DiscordWebhook discordWebhook;
     private MessageHandler messageHandler;
-    private StatsDatabase statsDatabase;
     
     // Plugin messaging channel
     public static final MinecraftChannelIdentifier CHANNEL = MinecraftChannelIdentifier.from("velocityessentials:main");
@@ -82,21 +81,6 @@ public class VelocityEssentials {
             return;
         }
 
-        StatsConfig config = StatsConfig.load(dataDirectory);
-        try {
-            this.statsDatabase = new StatsDatabase(
-                config.getDbHost(),
-                config.getDbPort(),
-                config.getDbName(),
-                config.getDbUser(),
-                config.getDbPassword()
-            );
-            logger.info("Connected to stats database!");
-        } catch (Exception e) {
-            logger.error("Failed to connect to stats database!", e);
-            return;
-        }
-
         // Initialize components
         playerData = new PlayerData(this);
         playerTracker = new PlayerTracker(this);
@@ -119,13 +103,16 @@ public class VelocityEssentials {
             .plugin(this)
             .build();
 
-        CommandManager commandManager = proxy.getCommandManager();
-        commandManager.register(
-            commandManager.metaBuilder("ve")
-                .aliases("valeevent", "event")
-                .build(),
-            new EventCommand(statsDatabase)
+        // Register event command
+        CommandMeta eventMeta = server.getCommandManager()
+            .metaBuilder("event")
+            .aliases("valeevent", "ve")
+            .plugin(this)
+            .build();
+            
+        server.getCommandManager().register(eventMeta, new EventCommand(statsDatabase));
         
+        // Register main command
         server.getCommandManager().register(commandMeta, new MainCommand(this));
         
         // Schedule cleanup task
