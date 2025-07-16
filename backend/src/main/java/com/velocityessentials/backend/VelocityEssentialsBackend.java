@@ -17,6 +17,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.ChatColor;
+import com.google.common.io.ByteArrayDataOutput;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -74,8 +76,12 @@ public class VelocityEssentialsBackend extends JavaPlugin implements PluginMessa
         // Get formatted prefix from PlaceholderAPI
         String prefix = PlaceholderAPI.setPlaceholders(player, "%playercustomisation_prefix%");
         
+        getLogger().info("Raw prefix from PAPI: '" + prefix + "'");
+
         // Clean up prefix for Discord (remove color codes)
         prefix = ChatColor.stripColor(prefix).trim();
+
+        getLogger().info("Stripped prefix: '" + prefix + "'");
         
         // Convert [Owner] to **Owner** for Discord
         if (prefix.startsWith("[") && prefix.endsWith("]")) {
@@ -83,6 +89,8 @@ public class VelocityEssentialsBackend extends JavaPlugin implements PluginMessa
         } else if (!prefix.isEmpty()) {
             prefix = "**" + prefix + "**";
         }
+
+        getLogger().info("Final prefix: '" + prefix + "'");
         
         // Send to Velocity
         ByteArrayDataOutput out = ByteStreams.newDataOutput();

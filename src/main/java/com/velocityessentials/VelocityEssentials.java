@@ -8,12 +8,15 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
+import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.CommandMeta;
-
+import com.velocityessentials.commands.EventCommand;
 import com.velocityessentials.commands.MainCommand;
 import com.velocityessentials.config.Config;
+import com.velocityessentials.config.StatsConfig;
 import com.velocityessentials.database.Database;
 import com.velocityessentials.database.PlayerData;
+import com.velocityessentials.database.StatsDatabase;
 import com.velocityessentials.listeners.PluginMessageListener;
 import com.velocityessentials.listeners.PlayerListener;
 import com.velocityessentials.listeners.ServerSwitchListener;
@@ -40,6 +43,7 @@ public class VelocityEssentials {
     private final Logger logger;
     private final Path dataDirectory;
     
+    
     // Core components
     private Config config;
     private Database database;
@@ -49,6 +53,7 @@ public class VelocityEssentials {
     // Modules
     private DiscordWebhook discordWebhook;
     private MessageHandler messageHandler;
+    private StatsDatabase statsDatabase;
     
     // Plugin messaging channel
     public static final MinecraftChannelIdentifier CHANNEL = MinecraftChannelIdentifier.from("velocityessentials:main");
@@ -71,14 +76,29 @@ public class VelocityEssentials {
             logger.error("Failed to load configuration! Disabling plugin.");
             return;
         }
-        
+
         // Initialize database
         database = new Database(this);
         if (!database.connect()) {
             logger.error("Failed to connect to database! Disabling plugin.");
             return;
         }
-        
+
+        StatsConfig config = StatsConfig.load(dataDirectory);
+        try {
+            this.statsDatabase = new StatsDatabase(
+                config.getDbHost(),
+                config.getDbPort(),
+                config.getDbName(),
+                config.getDbUser(),
+                config.getDbPassword()
+            );
+            logger.info("Connected to stats database!");
+        } catch (Exception e) {
+            logger.error("Failed to connect to stats database!", e);
+            return;
+        }
+
         // Initialize components
         playerData = new PlayerData(this);
         playerTracker = new PlayerTracker(this);
@@ -100,6 +120,13 @@ public class VelocityEssentials {
             .aliases("ve", "vess")
             .plugin(this)
             .build();
+            
+        CommandManager commandManager = proxy.getCommandManager();
+        commandManager.register(
+            commandManager.metaBuilder("ve")
+                .aliases("valeevent", "event")
+                .build(),
+            new EventCommand(statsDatabase)
         
         server.getCommandManager().register(commandMeta, new MainCommand(this));
         
