@@ -4,7 +4,6 @@ import com.velocityessentials.VelocityEssentials;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 
-import java.awt.Color;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;

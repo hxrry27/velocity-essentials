@@ -49,7 +49,16 @@ public class Config {
     private Map<String, String> chatPrefixes;
     private boolean chatShowServerPrefix;
     private String chatServerFormat;
-    
+
+    // Stats
+    private boolean statsEnabled;
+    private int statsUpdateInterval;
+    private Map<String, String> statsServerPaths;
+    private boolean statsApiEnabled;
+    private int statsApiPort;
+    private String statsApiKey;
+    private String statsApiBind;
+
     // Other
     private boolean debug;
     
@@ -132,6 +141,27 @@ public class Config {
             // Debug
             debug = rootNode.node("debug").getBoolean(false);
             
+            // Stats settings
+            CommentedConfigurationNode statsNode = rootNode.node("stats");
+            statsEnabled = statsNode.node("enabled").getBoolean(false);
+            statsUpdateInterval = statsNode.node("update-interval").getInt(10);
+            
+            // Load server paths
+            statsServerPaths = new HashMap<>();
+            CommentedConfigurationNode serversNode = statsNode.node("servers");
+            if (!serversNode.virtual()) {
+                serversNode.childrenMap().forEach((key, value) -> {
+                    statsServerPaths.put(key.toString(), value.getString(""));
+                });
+            }
+            
+            // API settings
+            CommentedConfigurationNode apiNode = statsNode.node("api");
+            statsApiEnabled = apiNode.node("enabled").getBoolean(false);
+            statsApiPort = apiNode.node("port").getInt(8080);
+            statsApiKey = apiNode.node("auth-key").getString("change-me");
+            statsApiBind = apiNode.node("bind").getString("0.0.0.0");
+
             return true;
             
         } catch (IOException e) {
@@ -168,8 +198,18 @@ public class Config {
     public boolean isChatShowServerPrefix() { return chatShowServerPrefix; }
     public String getChatServerFormat() { return chatServerFormat; }
     
-    public boolean isDebug() { return debug; }
+    // Stats Getters
+    public boolean isStatsEnabled() { return statsEnabled; }
+    public int getStatsUpdateInterval() { return statsUpdateInterval; }
+    public Map<String, String> getStatsServerPaths() { return statsServerPaths; }
+    public boolean isStatsApiEnabled() { return statsApiEnabled; }
+    public int getStatsApiPort() { return statsApiPort; }
+    public String getStatsApiKey() { return statsApiKey; }
+    public String getStatsApiBind() { return statsApiBind; }
     
+
+    public boolean isDebug() { return debug; }
+
     public String getMessage(String key) {
         return getMessage(key, "");
     }

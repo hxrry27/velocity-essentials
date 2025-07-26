@@ -8,7 +8,6 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
-import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.CommandMeta;
 import com.velocityessentials.commands.EventCommand;
 import com.velocityessentials.commands.MainCommand;
@@ -21,6 +20,8 @@ import com.velocityessentials.listeners.ServerSwitchListener;
 import com.velocityessentials.modules.discord.DiscordWebhook;
 import com.velocityessentials.modules.messages.MessageHandler;
 import com.velocityessentials.utils.PlayerTracker;
+import com.velocityessentials.stats.StatsSystem;
+import com.velocityessentials.stats.StatsAPIHandler;
 
 import org.slf4j.Logger;
 
@@ -51,6 +52,8 @@ public class VelocityEssentials {
     // Modules
     private DiscordWebhook discordWebhook;
     private MessageHandler messageHandler;
+    private StatsSystem statsSystem;
+    private StatsAPIHandler statsAPI;
     
     // Plugin messaging channel
     public static final MinecraftChannelIdentifier CHANNEL = MinecraftChannelIdentifier.from("velocityessentials:main");
@@ -102,19 +105,41 @@ public class VelocityEssentials {
             .aliases("ve", "vess")
             .plugin(this)
             .build();
-
-        // Register event command
-        CommandMeta eventMeta = server.getCommandManager()
-            .metaBuilder("event")
-            .aliases("valeevent", "ve")
-            .plugin(this)
-            .build();
-            
-        server.getCommandManager().register(eventMeta, new EventCommand(statsDatabase));
         
         // Register main command
         server.getCommandManager().register(commandMeta, new MainCommand(this));
         
+        // Initialize stats system if enabled
+        if (config.isStatsEnabled()) {
+            try {
+                statsSystem = new StatsSystem(this);
+                logger.info("Stats system initialized!");
+                
+                // Start API if enabled
+                if (config.isStatsApiEnabled()) {
+                    statsAPI = new StatsAPIHandler(
+                        this, 
+                        statsSystem,
+                        config.getStatsApiPort(),
+                        config.getStatsApiKey()
+                    );
+                    logger.info("Stats API started on port " + config.getStatsApiPort());
+                }
+                
+                // Move the event command registration here
+                CommandMeta eventMeta = server.getCommandManager()
+                    .metaBuilder("event")
+                    .aliases("valeevent", "ve")
+                    .plugin(this)
+                    .build();
+                    
+                server.getCommandManager().register(eventMeta, new EventCommand(statsSystem));
+                
+            } catch (Exception e) {
+                logger.error("Failed to initialize stats system!", e);
+            }
+        }
+
         // Schedule cleanup task
         server.getScheduler()
             .buildTask(this, () -> playerData.cleanupOldEntries())
@@ -133,6 +158,14 @@ public class VelocityEssentials {
             database.close();
         }
         
+        if (statsAPI != null) {
+            statsAPI.shutdown();
+        }
+        
+        if (statsSystem != null) {
+            statsSystem.shutdown();
+        }
+
         logger.info("VelocityEssentials has been disabled!");
     }
     

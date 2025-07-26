@@ -68,6 +68,10 @@ public class VelocityEssentialsBackend extends JavaPlugin implements PluginMessa
     
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
+        if (!getConfig().getBoolean("enable-chat-processing", false)) {
+            return;
+        }
+        
         // Don't process if PlaceholderAPI isn't available
         if (!Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) return;
         

@@ -75,23 +75,6 @@ discord:
     # You can also use specific permissions:
     "velocityessentials.prefix.developer": "**Dev**"
     "velocityessentials.prefix.builder": "**Builder**"
-    
-  # Alternative format examples:
-  # Using emoji:
-  # chat-prefixes:
-  #   "group.owner": "👑 **Owner**"
-  #   "group.admin": "⚔️ **Admin**"
-  #   "group.vip": "⭐ **VIP**"
-  
-  # Using brackets:
-  # chat-prefixes:
-  #   "group.owner": "[**OWNER**]"
-  #   "group.admin": "[**ADMIN**]"
-  #   "group.vip": "[**VIP**]"
-  
-  # Using colors (Discord role colors):
-  # chat-prefixes:
-  #   "group.owner": "<@&ROLE_ID_HERE>"  # Will show as colored role
 
 # In-game messages
 messages:
@@ -107,58 +90,124 @@ messages:
   sending-to-fallback: "{prefix} <yellow>Sending you to the fallback server"
   first-join: "{prefix} <green>Welcome to the network!"
 
-# Stats System Configuration
+# ===== STATS SYSTEM CONFIGURATION =====
 stats:
   # Enable the stats system
   enabled: true
   
   # Update interval in minutes (how often to read stat files)
-  # Default: 10 minutes (recommended)
-  update-interval: 10
+  # Recommended: 30 minutes for production, 5 minutes for testing
+  update-interval: 30
   
-  # Server stat paths
+  # Server stat paths - ADJUST THESE TO YOUR ACTUAL SERVER PATHS
   # Map each server name to its stats directory
   # The path should point to the world/stats directory
   servers:
-    survival: "/servers/survival/world/stats"
-    creative: "/servers/creative/world/stats"
-    resource: "/servers/resource/world/stats"
-    # Add more servers as needed:
-    # skyblock: "/servers/skyblock/world/stats"
+    # Survival server - main SMP world
+    survival: "/path/to/your/survival/world/stats"
+    # Resource server - mining/resource world
+    resource: "/path/to/your/resource/world/stats"
+    # Creative server (optional - uncomment if you want creative stats)
+    # creative: "/path/to/your/creative/world/stats"
+    
+    # Examples for different setups:
+    # If using Pterodactyl Panel:
+    # survival: "/home/container/survival/world/stats"
+    # resource: "/home/container/resource/world/stats"
+    
+    # If using MultiPaper or similar:
+    # survival: "/servers/survival/world/stats"
+    # resource: "/servers/resource/world/stats"
+    
+    # If servers are on different machines, you might need to use network mounts
+    # survival: "/mnt/survival-server/world/stats"
+    # resource: "/mnt/resource-server/world/stats"
   
   # API Configuration (for web integration)
   api:
-    # Enable REST API
+    # Enable REST API for website integration
     enabled: true
     
     # Port to listen on
     port: 8080
     
-    # Bind address (0.0.0.0 for all interfaces, 127.0.0.1 for localhost only)
+    # Bind address 
+    # Use 0.0.0.0 to allow external connections (for website)
+    # Use 127.0.0.1 for localhost only (if website is on same server)
     bind: "0.0.0.0"
     
-    # API authentication key
-    # CHANGE THIS to something secure!
-    auth-key: "your-secret-api-key-here"
+    # API authentication key - CHANGE THIS TO SOMETHING SECURE!
+    # This should match NEXT_PUBLIC_STATS_API_KEY in your website .env file
+    auth-key: "vale-smp-stats-key-2025-change-this"
   
   # Awards/Achievements Processing
-  # These can be processed here or by your website
   awards:
-    # Process awards in the plugin
-    process-locally: false
+    # Process awards in the plugin (recommended)
+    process-locally: true
     
-    # If processing locally, how often to calculate awards (minutes)
+    # How often to calculate awards (minutes)
     calculation-interval: 60
     
-    # Award categories to track (similar to MinecraftStats)
+    # Award categories to track
     categories:
-      - "distance"
-      - "time"
-      - "damage"
-      - "mine"
-      - "craft"
-      - "kill"
-      - "death"
+      - "time"        # Play time, time since death, etc.
+      - "distance"    # Walking, sprinting, flying distances
+      - "mining"      # Blocks mined, ores found
+      - "building"    # Blocks placed, items crafted
+      - "combat"      # Mobs killed, damage dealt/taken
+      - "survival"    # Deaths, damage avoided
+      - "fishing"     # Fish caught, treasure found
+      - "farming"     # Animals bred, crops harvested
+      - "exploration" # Biomes visited, structures found
+
+# ===== EVENTS SYSTEM =====
+# Events are competitions that track specific stats over time periods
+events:
+  # Enable events system
+  enabled: true
+  
+  # Default event duration if not specified (in days)
+  default-duration: 7
+  
+  # Maximum number of active events at once
+  max-active-events: 3
+  
+  # Permissions for event management
+  permissions:
+    # Permission to create events
+    create: "velocityessentials.events.create"
+    # Permission to manage (start/stop/delete) events
+    manage: "velocityessentials.events.manage"
+    # Permission to view all events
+    view: "velocityessentials.events.view"
+    # Admin permission (all event actions)
+    admin: "velocityessentials.events.admin"
 
 # Debug mode - shows extra logging
 debug: false
+
+# ===== EXAMPLE CONFIGURATION FOR DIFFERENT SETUPS =====
+
+# Example 1: Single machine with multiple server folders
+# stats:
+#   servers:
+#     survival: "/minecraft/servers/survival/world/stats"
+#     resource: "/minecraft/servers/resource/world/stats"
+
+# Example 2: Docker/Pterodactyl setup
+# stats:
+#   servers:
+#     survival: "/home/container/survival/world/stats" 
+#     resource: "/home/container/resource/world/stats"
+
+# Example 3: Network mounted drives (servers on different machines)
+# stats:
+#   servers:
+#     survival: "/mnt/nfs/survival-server/world/stats"
+#     resource: "/mnt/nfs/resource-server/world/stats"
+
+# Example 4: Windows setup
+# stats:
+#   servers:
+#     survival: "C:\\Minecraft\\Servers\\Survival\\world\\stats"
+#     resource: "C:\\Minecraft\\Servers\\Resource\\world\\stats"

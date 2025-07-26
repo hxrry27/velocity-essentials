@@ -1,7 +1,6 @@
 package com.velocityessentials.commands;
 
 import com.velocityessentials.VelocityEssentials;
-import com.velocityessentials.database.PlayerData;
 import com.velocityessentials.utils.MessageUtil;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
@@ -10,7 +9,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 public class MainCommand implements SimpleCommand {
     private final VelocityEssentials plugin;
