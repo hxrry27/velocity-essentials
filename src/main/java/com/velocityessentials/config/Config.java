@@ -36,6 +36,11 @@ public class Config {
     
     // Messages
     private boolean customMessagesEnabled;
+    private boolean showJoinMessages;
+    private boolean showLeaveMessages;
+    private boolean showSwitchMessages;
+    private boolean showFirstTimeMessages;
+    private boolean suppressVanillaMessages;
     private String messagePrefix;
     private String noPermissionMessage;
     private String sendingToLastServer;
@@ -130,6 +135,11 @@ public class Config {
             // Message settings
             CommentedConfigurationNode messagesNode = rootNode.node("messages");
             customMessagesEnabled = messagesNode.node("custom-enabled").getBoolean(true);
+            showJoinMessages = messagesNode.node("show-join").getBoolean(true);
+            showLeaveMessages = messagesNode.node("show-leave").getBoolean(true);
+            showSwitchMessages = messagesNode.node("show-switch").getBoolean(true);
+            showFirstTimeMessages = messagesNode.node("show-first-time").getBoolean(true);
+            suppressVanillaMessages = messagesNode.node("suppress-vanilla").getBoolean(true);
             messagePrefix = messagesNode.node("prefix").getString("<gray>[<aqua>VE<gray>]</aqua>");
             noPermissionMessage = messagesNode.node("no-permission").getString("{prefix} <red>You don't have permission!");
             sendingToLastServer = messagesNode.node("sending-to-last-server").getString("{prefix} <green>Sending you to your last server: <yellow>{server}");
@@ -197,6 +207,12 @@ public class Config {
     public Map<String, String> getChatPrefixes() { return chatPrefixes; }
     public boolean isChatShowServerPrefix() { return chatShowServerPrefix; }
     public String getChatServerFormat() { return chatServerFormat; }
+
+    public boolean isShowJoinMessages() { return showJoinMessages; }
+    public boolean isShowLeaveMessages() { return showLeaveMessages; }
+    public boolean isShowSwitchMessages() { return showSwitchMessages; }
+    public boolean isShowFirstTimeMessages() { return showFirstTimeMessages; }
+    public boolean isSuppressVanillaMessages() { return suppressVanillaMessages; }
     
     // Stats Getters
     public boolean isStatsEnabled() { return statsEnabled; }

@@ -66,14 +66,24 @@ public class PlayerListener {
                             plugin.getLogger().info(player.getUsername() + " left the network from " + server.getServerInfo().getName());
                         }
                         
-                        // Send Discord notification
-                        if (plugin.getConfig().isDiscordEnabled()) {
-                            plugin.getDiscordWebhook().sendLeaveMessage(player, server);
-                        }
-                        
-                        // Send to backends
-                        if (plugin.getConfig().isCustomMessagesEnabled()) {
-                            plugin.getMessageHandler().sendLeaveMessage(player, server);
+                        // Check if leave messages are enabled
+                        if (plugin.getConfig().isShowLeaveMessages()) {
+                            // Send Discord notification
+                            if (plugin.getConfig().isDiscordEnabled()) {
+                                plugin.getDiscordWebhook().sendLeaveMessage(player, server);
+                            }
+                            
+                            // Send to backends
+                            if (plugin.getConfig().isCustomMessagesEnabled()) {
+                                // Suppress vanilla messages if enabled
+                                if (plugin.getConfig().isSuppressVanillaMessages()) {
+                                    plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), server.getServerInfo().getName());
+                                }
+                                plugin.getMessageHandler().sendLeaveMessage(player, server);
+                            }
+                        } else if (plugin.getConfig().isSuppressVanillaMessages() && plugin.getConfig().isCustomMessagesEnabled()) {
+                            // Even if we're not showing custom messages, suppress vanilla if requested
+                            plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), server.getServerInfo().getName());
                         }
                     }
                 })

@@ -81,6 +81,15 @@ messages:
   # Enable custom in-game messages (requires backend plugin)
   custom-enabled: true
   
+  # Individual message type toggles
+  show-join: true       # Show join messages
+  show-leave: true      # Show leave messages  
+  show-switch: true     # Show server switch messages
+  show-first-time: true # Show first-time join messages
+  
+  # Suppress vanilla messages when custom messages are enabled
+  suppress-vanilla: true
+  
   # Message prefix
   prefix: "<gray>[<aqua>VE<gray>]</aqua>"
   

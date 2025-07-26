@@ -78,14 +78,28 @@ public class ServerSwitchListener {
                     (showFirstTime ? " (first time)" : ""));
             }
             
-            // Send Discord notification
-            if (plugin.getConfig().isDiscordEnabled()) {
-                plugin.getDiscordWebhook().sendJoinMessage(player, server, showFirstTime);
-            }
+            // Check individual toggles before sending messages
+            boolean shouldSendJoin = showFirstTime ? 
+                plugin.getConfig().isShowFirstTimeMessages() : 
+                plugin.getConfig().isShowJoinMessages();
             
-            // Send to backends
-            if (plugin.getConfig().isCustomMessagesEnabled()) {
-                plugin.getMessageHandler().sendJoinMessage(player, server, showFirstTime);
+            if (shouldSendJoin) {
+                // Send Discord notification
+                if (plugin.getConfig().isDiscordEnabled()) {
+                    plugin.getDiscordWebhook().sendJoinMessage(player, server, showFirstTime);
+                }
+                
+                // Send to backends
+                if (plugin.getConfig().isCustomMessagesEnabled()) {
+                    // Suppress vanilla messages if enabled
+                    if (plugin.getConfig().isSuppressVanillaMessages()) {
+                        plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), serverName);
+                    }
+                    plugin.getMessageHandler().sendJoinMessage(player, server, showFirstTime);
+                }
+            } else if (plugin.getConfig().isSuppressVanillaMessages() && plugin.getConfig().isCustomMessagesEnabled()) {
+                // Even if we're not showing custom messages, suppress vanilla if requested
+                plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), serverName);
             }
         });
     }
@@ -108,16 +122,26 @@ public class ServerSwitchListener {
             plugin.getLogger().info(player.getUsername() + " switched from " + fromServer + " to " + toServer);
         }
         
-        // Send Discord notification
-        if (plugin.getConfig().isDiscordEnabled()) {
-            plugin.getDiscordWebhook().sendSwitchMessage(player, fromServer, toServer);
-        }
-        
-        // Send to backends
-        if (plugin.getConfig().isCustomMessagesEnabled()) {
-            // Suppress vanilla messages
-            plugin.getPlayerTracker().suppressPlayer(player.getUsername());
-            plugin.getMessageHandler().sendSwitchMessage(player, fromServer, toServer);
+        // Check if switch messages are enabled
+        if (plugin.getConfig().isShowSwitchMessages()) {
+            // Send Discord notification
+            if (plugin.getConfig().isDiscordEnabled()) {
+                plugin.getDiscordWebhook().sendSwitchMessage(player, fromServer, toServer);
+            }
+            
+            // Send to backends
+            if (plugin.getConfig().isCustomMessagesEnabled()) {
+                // Suppress vanilla messages if enabled
+                if (plugin.getConfig().isSuppressVanillaMessages()) {
+                    plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), fromServer);
+                    plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), toServer);
+                }
+                plugin.getMessageHandler().sendSwitchMessage(player, fromServer, toServer);
+            }
+        } else if (plugin.getConfig().isSuppressVanillaMessages() && plugin.getConfig().isCustomMessagesEnabled()) {
+            // Even if we're not showing custom messages, suppress vanilla if requested
+            plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), fromServer);
+            plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), toServer);
         }
     }
 }
