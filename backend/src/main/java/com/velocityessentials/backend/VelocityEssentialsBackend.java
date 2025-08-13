@@ -1,37 +1,28 @@
 package com.velocityessentials.backend;
 
 import com.google.common.io.ByteArrayDataInput;
+import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
-import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import me.clip.placeholderapi.PlaceholderAPI;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.ChatColor;
-import com.google.common.io.ByteArrayDataOutput;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
-public class VelocityEssentialsBackend extends JavaPlugin implements PluginMessageListener, Listener {
-    private static final String CHANNEL = "velocityessentials:main";
+public class VelocityEssentialsBackend extends JavaPlugin {
+    public static final String CHANNEL = "velocityessentials:main";
     
-    // Track players we should suppress messages for
-    private final Map<String, Long> suppressedPlayers = new ConcurrentHashMap<>();
-    private static final long SUPPRESS_DURATION = 5000; // 5 seconds
-    
-    private String serverName;
     private boolean debug;
+    private String serverName;
     
     @Override
     public void onEnable() {
@@ -39,24 +30,39 @@ public class VelocityEssentialsBackend extends JavaPlugin implements PluginMessa
         saveDefaultConfig();
         loadConfiguration();
         
-        // Register plugin messaging channel
-        getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, this);
-        getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
-        
-        // Register event listeners
-        getServer().getPluginManager().registerEvents(this, this);
-        
-        // Schedule cleanup task
-        getServer().getScheduler().runTaskTimerAsynchronously(this, this::cleanupSuppressed, 100L, 100L);
-        
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") == null) {
-        getLogger().warning("PlaceholderAPI not found! Chat formatting will not work properly.");
+        // === SYSTEM 1: VANILLA MESSAGE SUPPRESSION ===
+        // Simple, standalone system - just like EssentialsX
+        if (getConfig().getBoolean("suppress-vanilla-join", false) || 
+            getConfig().getBoolean("suppress-vanilla-quit", false)) {
+            
+            getServer().getPluginManager().registerEvents(new VanillaMessageSuppressor(this), this);
+            getLogger().info("Vanilla message suppression enabled: Join=" + 
+                getConfig().getBoolean("suppress-vanilla-join", false) + 
+                " Quit=" + getConfig().getBoolean("suppress-vanilla-quit", false));
         }
-
+        
+        // === SYSTEM 2: NETWORK MESSAGING ===  
+        // Separate system for receiving custom messages from Velocity
+        if (getConfig().getBoolean("enable-network-messages", true)) {
+            getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, new NetworkMessageHandler(this));
+            getLogger().info("Network messaging enabled");
+        }
+        
+        // === SYSTEM 3: CHAT RELAY (Optional) ===
+        if (getConfig().getBoolean("enable-chat-processing", false)) {
+            getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
+            getServer().getPluginManager().registerEvents(new ChatProcessor(this), this);
+            getLogger().info("Chat processing enabled");
+        }
+        
+        // Check for PlaceholderAPI if chat processing is enabled
+        if (getConfig().getBoolean("enable-chat-processing", false) && 
+            Bukkit.getPluginManager().getPlugin("PlaceholderAPI") == null) {
+            getLogger().warning("PlaceholderAPI not found! Chat formatting will not work properly.");
+        }
+        
         getLogger().info("VelocityEssentials Backend enabled!");
-        getLogger().info("Server name: " + serverName);
-
-
+        getLogger().info("Server: " + serverName);
     }
     
     @Override
@@ -66,228 +72,171 @@ public class VelocityEssentialsBackend extends JavaPlugin implements PluginMessa
         getLogger().info("VelocityEssentials Backend disabled!");
     }
     
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onPlayerChat(AsyncPlayerChatEvent event) {
-        if (!getConfig().getBoolean("enable-chat-processing", false)) {
-            return;
-        }
-        
-        // Don't process if PlaceholderAPI isn't available
-        if (!Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) return;
-        
-        Player player = event.getPlayer();
-        
-        // Get formatted prefix from PlaceholderAPI
-        String prefix = PlaceholderAPI.setPlaceholders(player, "%playercustomisation_prefix%");
-        
-        getLogger().info("Raw prefix from PAPI: '" + prefix + "'");
-
-        // Clean up prefix for Discord (remove color codes)
-        prefix = ChatColor.stripColor(prefix).trim();
-
-        getLogger().info("Stripped prefix: '" + prefix + "'");
-        
-        // Convert [Owner] to **Owner** for Discord
-        if (prefix.startsWith("[") && prefix.endsWith("]")) {
-            prefix = "**" + prefix.substring(1, prefix.length() - 1) + "**";
-        } else if (!prefix.isEmpty()) {
-            prefix = "**" + prefix + "**";
-        }
-
-        getLogger().info("Final prefix: '" + prefix + "'");
-        
-        // Send to Velocity
-        ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        out.writeUTF("chat");
-        out.writeUTF(player.getUniqueId().toString());
-        out.writeUTF(player.getName());
-        out.writeUTF(prefix);
-        out.writeUTF(event.getMessage());
-        out.writeUTF(getConfig().getString("server-name", "unknown"));
-        
-        // Send to any online player (plugin messaging requires a player)
-        if (!Bukkit.getOnlinePlayers().isEmpty()) {
-            Bukkit.getOnlinePlayers().iterator().next()
-                .sendPluginMessage(this, CHANNEL, out.toByteArray());
-            
-            if (debug) {
-                getLogger().info("Sent chat to Velocity: " + prefix + " " + player.getName() + ": " + event.getMessage());
-            }
-        }
-    }
-
     private void loadConfiguration() {
-        FileConfiguration config = getConfig();
-        serverName = config.getString("server-name", "unknown");
-        debug = config.getBoolean("debug", false);
+        serverName = getConfig().getString("server-name", "unknown");
+        debug = getConfig().getBoolean("debug", false);
     }
     
-    @Override
-    public void onPluginMessageReceived(String channel, Player player, byte[] message) {
-        if (!channel.equals(CHANNEL)) {
-            return;
+    // === VANILLA MESSAGE SUPPRESSION ===
+    public static class VanillaMessageSuppressor implements Listener {
+        private final VelocityEssentialsBackend plugin;
+        private final boolean suppressJoin;
+        private final boolean suppressQuit;
+        
+        public VanillaMessageSuppressor(VelocityEssentialsBackend plugin) {
+            this.plugin = plugin;
+            this.suppressJoin = plugin.getConfig().getBoolean("suppress-vanilla-join", false);
+            this.suppressQuit = plugin.getConfig().getBoolean("suppress-vanilla-quit", false);
         }
         
-        ByteArrayDataInput in = ByteStreams.newDataInput(message);
-        String subchannel = in.readUTF();
-        
-        if (debug) {
-            getLogger().info("Received message: " + subchannel);
+        @EventHandler(priority = EventPriority.LOWEST)
+        public void onPlayerJoin(PlayerJoinEvent event) {
+            if (suppressJoin) {
+                event.joinMessage(null);
+                if (plugin.debug) {
+                    plugin.getLogger().info("Suppressed vanilla join message for: " + event.getPlayer().getName());
+                }
+            }
         }
         
-        switch (subchannel) {
-            case "join" -> handleJoinMessage(in);
-            case "leave" -> handleLeaveMessage(in);
-            case "switch" -> handleSwitchMessage(in);
-            case "firstjoin" -> handleFirstJoinMessage(in);
-            case "suppress" -> handleSuppressMessage(in);
-            case "test" -> handleTestMessage(in);
-        }
-    }
-    
-    private void handleJoinMessage(ByteArrayDataInput in) {
-        String playerName = in.readUTF();
-        String server = in.readUTF();
-        
-        // Only show if it's for this server
-        if (!server.equals(serverName)) {
-            return;
-        }
-        
-        Component message = Component.text()
-            .append(Component.text("[", NamedTextColor.DARK_GRAY))
-            .append(Component.text("+", NamedTextColor.GREEN))
-            .append(Component.text("] ", NamedTextColor.DARK_GRAY))
-            .append(Component.text(playerName, NamedTextColor.GREEN))
-            .append(Component.text(" joined the game", NamedTextColor.YELLOW))
-            .build();
-        
-        Bukkit.broadcast(message);
-    }
-    
-    private void handleLeaveMessage(ByteArrayDataInput in) {
-        String playerName = in.readUTF();
-        String server = in.readUTF();
-        
-        // Only show if it's for this server
-        if (!server.equals(serverName)) {
-            return;
-        }
-        
-        Component message = Component.text()
-            .append(Component.text("[", NamedTextColor.DARK_GRAY))
-            .append(Component.text("-", NamedTextColor.RED))
-            .append(Component.text("] ", NamedTextColor.DARK_GRAY))
-            .append(Component.text(playerName, NamedTextColor.RED))
-            .append(Component.text(" left the game", NamedTextColor.YELLOW))
-            .build();
-        
-        Bukkit.broadcast(message);
-    }
-    
-    private void handleSwitchMessage(ByteArrayDataInput in) {
-        String playerName = in.readUTF();
-        String fromServer = in.readUTF();
-        String toServer = in.readUTF();
-        
-        Component message = Component.text()
-            .append(Component.text("[", NamedTextColor.DARK_GRAY))
-            .append(Component.text("↔", NamedTextColor.GOLD))
-            .append(Component.text("] ", NamedTextColor.DARK_GRAY))
-            .append(Component.text(playerName, NamedTextColor.GOLD))
-            .append(Component.text(" switched servers: ", NamedTextColor.YELLOW))
-            .append(Component.text(fromServer, NamedTextColor.WHITE))
-            .append(Component.text(" → ", NamedTextColor.GRAY))
-            .append(Component.text(toServer, NamedTextColor.WHITE))
-            .build();
-        
-        Bukkit.broadcast(message);
-    }
-    
-    private void handleFirstJoinMessage(ByteArrayDataInput in) {
-        String playerName = in.readUTF();
-        String server = in.readUTF();
-        
-        // Only show if it's for this server
-        if (!server.equals(serverName)) {
-            return;
-        }
-        
-        Component message = Component.text()
-            .append(Component.text("[", NamedTextColor.DARK_GRAY))
-            .append(Component.text("★", NamedTextColor.GOLD))
-            .append(Component.text("] ", NamedTextColor.DARK_GRAY))
-            .append(Component.text(playerName, NamedTextColor.GOLD))
-            .append(Component.text(" joined for the first time!", NamedTextColor.YELLOW)
-                .decorate(TextDecoration.BOLD))
-            .build();
-        
-        Bukkit.broadcast(message);
-    }
-    
-    private void handleSuppressMessage(ByteArrayDataInput in) {
-        String playerName = in.readUTF();
-        suppressedPlayers.put(playerName.toLowerCase(), System.currentTimeMillis());
-        
-        if (debug) {
-            getLogger().info("Suppressing messages for: " + playerName);
-        }
-    }
-    
-    private void handleTestMessage(ByteArrayDataInput in) {
-        String message = in.readUTF();
-        getLogger().info("Test message received: " + message);
-        
-        Component broadcast = Component.text()
-            .append(Component.text("[VE Test] ", NamedTextColor.AQUA))
-            .append(Component.text(message, NamedTextColor.WHITE))
-            .build();
-        
-        Bukkit.broadcast(broadcast);
-    }
-    
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        String playerName = event.getPlayer().getName().toLowerCase();
-        
-        if (shouldSuppress(playerName)) {
-            event.joinMessage(null); // Suppress vanilla message
-            suppressedPlayers.remove(playerName);
-            
-            if (debug) {
-                getLogger().info("Suppressed join message for: " + event.getPlayer().getName());
+        @EventHandler(priority = EventPriority.LOWEST)
+        public void onPlayerQuit(PlayerQuitEvent event) {
+            if (suppressQuit) {
+                event.quitMessage(null);
+                if (plugin.debug) {
+                    plugin.getLogger().info("Suppressed vanilla quit message for: " + event.getPlayer().getName());
+                }
             }
         }
     }
     
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        String playerName = event.getPlayer().getName().toLowerCase();
+    // === NETWORK MESSAGE HANDLER ===
+    public static class NetworkMessageHandler implements PluginMessageListener {
+        private final VelocityEssentialsBackend plugin;
         
-        if (shouldSuppress(playerName)) {
-            event.quitMessage(null); // Suppress vanilla message
-            suppressedPlayers.remove(playerName);
+        public NetworkMessageHandler(VelocityEssentialsBackend plugin) {
+            this.plugin = plugin;
+        }
+        
+        @Override
+        public void onPluginMessageReceived(String channel, Player player, byte[] message) {
+            if (!channel.equals(CHANNEL)) return;
             
-            if (debug) {
-                getLogger().info("Suppressed quit message for: " + event.getPlayer().getName());
+            ByteArrayDataInput in = ByteStreams.newDataInput(message);
+            String subchannel = in.readUTF();
+            
+            if (plugin.debug) {
+                plugin.getLogger().info("Received network message: " + subchannel);
+            }
+            
+            switch (subchannel) {
+                case "network_join" -> handleNetworkJoin(in);
+                case "network_leave" -> handleNetworkLeave(in);  
+                case "network_switch" -> handleNetworkSwitch(in);
+                case "test" -> handleTest(in);
             }
         }
-    }
-    
-    private boolean shouldSuppress(String playerName) {
-        Long suppressTime = suppressedPlayers.get(playerName);
-        if (suppressTime == null) {
-            return false;
+        
+        private void handleNetworkJoin(ByteArrayDataInput in) {
+            String playerName = in.readUTF();
+            String serverName = in.readUTF();
+            String customMessage = in.readUTF();
+            
+            // Broadcast custom message to all players on this server
+            Component message = Component.text(customMessage);
+            Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(message));
+            
+            if (plugin.debug) {
+                plugin.getLogger().info("Network join: " + playerName + " → " + serverName);
+            }
         }
         
-        // Check if suppression is still valid
-        return System.currentTimeMillis() - suppressTime < SUPPRESS_DURATION;
+        private void handleNetworkLeave(ByteArrayDataInput in) {
+            String playerName = in.readUTF();
+            String serverName = in.readUTF();
+            String customMessage = in.readUTF();
+            
+            Component message = Component.text(customMessage);
+            Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(message));
+            
+            if (plugin.debug) {
+                plugin.getLogger().info("Network leave: " + playerName + " ← " + serverName);
+            }
+        }
+        
+        private void handleNetworkSwitch(ByteArrayDataInput in) {
+            String playerName = in.readUTF();
+            String serverName = in.readUTF(); // New server they switched to
+            String customMessage = in.readUTF();
+            
+            Component message = Component.text(customMessage);
+            Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(message));
+            
+            if (plugin.debug) {
+                plugin.getLogger().info("Network switch: " + customMessage);
+            }
+        }
+        
+        private void handleTest(ByteArrayDataInput in) {
+            String testMessage = in.readUTF();
+            plugin.getLogger().info("Test message: " + testMessage);
+            
+            Component broadcast = Component.text("[VE Test] " + testMessage)
+                .color(NamedTextColor.AQUA);
+            Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(broadcast));
+        }
     }
     
-    private void cleanupSuppressed() {
-        long now = System.currentTimeMillis();
-        suppressedPlayers.entrySet().removeIf(entry -> 
-            now - entry.getValue() > SUPPRESS_DURATION
-        );
+    // === CHAT PROCESSOR (Optional) ===
+    public static class ChatProcessor implements Listener {
+        private final VelocityEssentialsBackend plugin;
+        
+        public ChatProcessor(VelocityEssentialsBackend plugin) {
+            this.plugin = plugin;
+        }
+        
+        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+        public void onPlayerChat(AsyncPlayerChatEvent event) {
+            // Don't process if PlaceholderAPI isn't available
+            if (!Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) return;
+            
+            Player player = event.getPlayer();
+            
+            // Get formatted prefix from PlaceholderAPI
+            String prefix = PlaceholderAPI.setPlaceholders(player, "%playercustomisation_prefix%");
+            
+            if (plugin.debug) {
+                plugin.getLogger().info("Raw prefix from PAPI: '" + prefix + "'");
+            }
+
+            // Clean up prefix for Discord (remove color codes)
+            prefix = ChatColor.stripColor(prefix).trim();
+            
+            // Convert [Owner] to **Owner** for Discord
+            if (prefix.startsWith("[") && prefix.endsWith("]")) {
+                prefix = "**" + prefix.substring(1, prefix.length() - 1) + "**";
+            } else if (!prefix.isEmpty()) {
+                prefix = "**" + prefix + "**";
+            }
+            
+            // Send to Velocity
+            ByteArrayDataOutput out = ByteStreams.newDataOutput();
+            out.writeUTF("chat");
+            out.writeUTF(player.getUniqueId().toString());
+            out.writeUTF(player.getName());
+            out.writeUTF(prefix);
+            out.writeUTF(event.getMessage());
+            out.writeUTF(plugin.serverName);
+            
+            // Send to any online player (plugin messaging requires a player)
+            if (!Bukkit.getOnlinePlayers().isEmpty()) {
+                Bukkit.getOnlinePlayers().iterator().next()
+                    .sendPluginMessage(plugin, CHANNEL, out.toByteArray());
+                
+                if (plugin.debug) {
+                    plugin.getLogger().info("Sent chat to Velocity: " + prefix + " " + player.getName() + ": " + event.getMessage());
+                }
+            }
+        }
     }
 }

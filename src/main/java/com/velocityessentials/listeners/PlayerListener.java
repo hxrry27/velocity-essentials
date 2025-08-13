@@ -61,30 +61,15 @@ public class PlayerListener {
                     PlayerTracker.DisconnectInfo info = plugin.getPlayerTracker().getAndRemoveDisconnect(player.getUniqueId());
                     
                     if (info != null) {
-                        // They didn't reconnect - this is a real leave
-                        if (plugin.getConfig().isDebug()) {
-                            plugin.getLogger().info(player.getUsername() + " left the network from " + server.getServerInfo().getName());
+                        // Real leave - send network_leave
+                        String message = "§8[§c-§8] §c" + player.getUsername() + " §eleft the game";
+                        
+                        if (plugin.getConfig().isDiscordEnabled()) {
+                            plugin.getDiscordWebhook().sendLeaveMessage(player, server);
                         }
                         
-                        // Check if leave messages are enabled
-                        if (plugin.getConfig().isShowLeaveMessages()) {
-                            // Send Discord notification
-                            if (plugin.getConfig().isDiscordEnabled()) {
-                                plugin.getDiscordWebhook().sendLeaveMessage(player, server);
-                            }
-                            
-                            // Send to backends
-                            if (plugin.getConfig().isCustomMessagesEnabled()) {
-                                // Suppress vanilla messages if enabled
-                                if (plugin.getConfig().isSuppressVanillaMessages()) {
-                                    plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), server.getServerInfo().getName());
-                                }
-                                plugin.getMessageHandler().sendLeaveMessage(player, server);
-                            }
-                        } else if (plugin.getConfig().isSuppressVanillaMessages() && plugin.getConfig().isCustomMessagesEnabled()) {
-                            // Even if we're not showing custom messages, suppress vanilla if requested
-                            plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), server.getServerInfo().getName());
-                        }
+                        plugin.getMessageHandler().sendNetworkMessage("network_leave", 
+                            player.getUsername(), server.getServerInfo().getName(), message);
                     }
                 })
                 .delay(1100, TimeUnit.MILLISECONDS) // Slightly longer than switch detection delay

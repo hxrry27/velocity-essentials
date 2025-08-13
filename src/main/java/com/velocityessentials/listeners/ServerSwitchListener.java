@@ -62,86 +62,43 @@ public class ServerSwitchListener {
     private void handlePlayerJoin(Player player, RegisteredServer server) {
         String serverName = server.getServerInfo().getName();
         
-        // Skip blacklisted servers
+        // Skip blacklisted servers (optional)
         if (plugin.getConfig().getBlacklistedServers().contains(serverName)) {
             return;
         }
         
-        // Check if first time
+        // Skip if join messages disabled (optional)
+        if (!plugin.getConfig().isShowJoinMessages()) {
+            return;
+        }
+        
         plugin.getPlayerData().isFirstJoin(player.getUniqueId()).thenAccept(isFirstTime -> {
-            boolean showFirstTime = isFirstTime && 
-                plugin.getConfig().isShowFirstTime() && 
-                serverName.equals(plugin.getConfig().getFirstTimeServer());
-            
-            if (plugin.getConfig().isDebug()) {
-                plugin.getLogger().info(player.getUsername() + " joined the network on " + serverName + 
-                    (showFirstTime ? " (first time)" : ""));
-            }
-            
-            // Check individual toggles before sending messages
-            boolean shouldSendJoin = showFirstTime ? 
-                plugin.getConfig().isShowFirstTimeMessages() : 
-                plugin.getConfig().isShowJoinMessages();
-            
-            if (shouldSendJoin) {
-                // Send Discord notification
-                if (plugin.getConfig().isDiscordEnabled()) {
-                    plugin.getDiscordWebhook().sendJoinMessage(player, server, showFirstTime);
-                }
+            String message = isFirstTime ?
+                "§8[§6★§8] §6" + player.getUsername() + " §ejoined for the first time!" :
+                "§8[§a+§8] §a" + player.getUsername() + " §ejoined the game";
                 
-                // Send to backends
-                if (plugin.getConfig().isCustomMessagesEnabled()) {
-                    // Suppress vanilla messages if enabled
-                    if (plugin.getConfig().isSuppressVanillaMessages()) {
-                        plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), serverName);
-                    }
-                    plugin.getMessageHandler().sendJoinMessage(player, server, showFirstTime);
-                }
-            } else if (plugin.getConfig().isSuppressVanillaMessages() && plugin.getConfig().isCustomMessagesEnabled()) {
-                // Even if we're not showing custom messages, suppress vanilla if requested
-                plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), serverName);
+            // Send to Discord
+            if (plugin.getConfig().isDiscordEnabled()) {
+                plugin.getDiscordWebhook().sendJoinMessage(player, server, isFirstTime);
             }
+            
+            // Send network_join to ALL servers
+            plugin.getMessageHandler().sendNetworkMessage("network_join", 
+                player.getUsername(), serverName, message);
         });
     }
     
     private void handleServerSwitch(Player player, String fromServer, String toServer) {
-        // Skip if either server is blacklisted
-        if (plugin.getConfig().getBlacklistedServers().contains(fromServer) ||
-            plugin.getConfig().getBlacklistedServers().contains(toServer)) {
-            return;
-        }
-        
-        // Check cooldown
-        if (plugin.getPlayerTracker().shouldSuppressSwitch(player.getUniqueId())) {
-            return;
-        }
-        
-        plugin.getPlayerTracker().recordSwitch(player.getUniqueId());
-        
-        if (plugin.getConfig().isDebug()) {
-            plugin.getLogger().info(player.getUsername() + " switched from " + fromServer + " to " + toServer);
-        }
-        
-        // Check if switch messages are enabled
-        if (plugin.getConfig().isShowSwitchMessages()) {
-            // Send Discord notification
-            if (plugin.getConfig().isDiscordEnabled()) {
-                plugin.getDiscordWebhook().sendSwitchMessage(player, fromServer, toServer);
-            }
+        String message = "§8[§6↔§8] §6" + player.getUsername() + 
+            " §eswitched servers: §f" + fromServer + " §7→ §f" + toServer;
             
-            // Send to backends
-            if (plugin.getConfig().isCustomMessagesEnabled()) {
-                // Suppress vanilla messages if enabled
-                if (plugin.getConfig().isSuppressVanillaMessages()) {
-                    plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), fromServer);
-                    plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), toServer);
-                }
-                plugin.getMessageHandler().sendSwitchMessage(player, fromServer, toServer);
-            }
-        } else if (plugin.getConfig().isSuppressVanillaMessages() && plugin.getConfig().isCustomMessagesEnabled()) {
-            // Even if we're not showing custom messages, suppress vanilla if requested
-            plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), fromServer);
-            plugin.getMessageHandler().suppressPlayerMessages(player.getUsername(), toServer);
+        // Send to Discord  
+        if (plugin.getConfig().isDiscordEnabled()) {
+            plugin.getDiscordWebhook().sendSwitchMessage(player, fromServer, toServer);
         }
+        
+        // Send network_switch to ALL servers
+        plugin.getMessageHandler().sendNetworkMessage("network_switch", 
+            player.getUsername(), toServer, message);
     }
 }

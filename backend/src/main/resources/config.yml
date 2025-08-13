@@ -1,7 +1,22 @@
 # VelocityEssentials Backend Configuration
 
-# Server name - MUST match Velocity configuration
-server-name: "survival"
+# ===== SERVER IDENTIFICATION =====
+# Server name - MUST match your Velocity server names exactly
+server-name: "smp"  # Change per server: "smp", "creative", "resource"
 
-# Debug mode
-debug: false
+# ===== VANILLA MESSAGE SUPPRESSION =====  
+# Simple on/off toggles - works just like EssentialsX or Custom Join Messages
+# These work independently of any other features
+suppress-vanilla-join: true   # Remove "Player joined the game" 
+suppress-vanilla-quit: true   # Remove "Player left the game"
+
+# ===== NETWORK MESSAGING =====
+# Enable receiving custom messages from Velocity proxy
+enable-network-messages: true
+
+# ===== CHAT RELAY =====  
+# Enable chat processing for Discord integration
+enable-chat-processing: false
+
+# ===== DEBUG =====
+debug: true
