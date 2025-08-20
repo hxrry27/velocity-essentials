@@ -54,6 +54,7 @@ public class Config {
     private Map<String, String> chatPrefixes;
     private boolean chatShowServerPrefix;
     private String chatServerFormat;
+    private boolean discordAFKEnabled;
 
     // Stats
     private boolean statsEnabled;
@@ -112,7 +113,6 @@ public class Config {
             // Discord settings
             CommentedConfigurationNode discordNode = rootNode.node("discord");
 
-
             discordEnabled = discordNode.node("enabled").getBoolean(false);
             discordWebhookUrl = discordNode.node("webhook-url").getString("");
             discordUsername = discordNode.node("username").getString("VelocityEssentials");
@@ -122,6 +122,7 @@ public class Config {
             chatRelayEnabled = discordNode.node("chat-relay").getBoolean(false);
             chatFormat = discordNode.node("chat-format").getString("[{server}] **{player}**: {message}");
             usePlayerHeadForChat = discordNode.node("use-player-head-for-chat").getBoolean(false);
+            discordAFKEnabled = discordNode.node("show-afk").getBoolean(true);
             
             CommentedConfigurationNode prefixNode = discordNode.node("chat-prefixes");
             chatPrefixes = new LinkedHashMap<>(); // LinkedHashMap preserves insertion order
@@ -222,6 +223,7 @@ public class Config {
     public int getStatsApiPort() { return statsApiPort; }
     public String getStatsApiKey() { return statsApiKey; }
     public String getStatsApiBind() { return statsApiBind; }
+    public boolean isDiscordAFKEnabled() { return discordAFKEnabled; }
     
 
     public boolean isDebug() { return debug; }

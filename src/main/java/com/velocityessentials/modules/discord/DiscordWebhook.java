@@ -19,6 +19,7 @@ public class DiscordWebhook {
     private static final int COLOR_LEAVE = 0xFF0000;     // Red
     private static final int COLOR_SWITCH = 0xFFA500;    // Orange
     private static final int COLOR_FIRST_TIME = 0xFFD700; // Gold
+    private static final int COLOR_AFK = 0x808080;       // Gray
     
     public DiscordWebhook(VelocityEssentials plugin) {
         this.plugin = plugin;
@@ -67,15 +68,41 @@ public class DiscordWebhook {
         
         sendWebhook(json);
     }
-    
+
+    public void sendAFKMessage(String playerName, boolean isAfk, boolean manual) {
+        if (!plugin.getConfig().isDiscordEnabled()) return;
+        if (!plugin.getConfig().isDiscordAFKEnabled()) return; // Check if AFK messages are enabled for Discord
+        
+        String title;
+        if (isAfk) {
+            if (manual) {
+                title = playerName + " is now AFK";
+            } else {
+                title = playerName + " has gone AFK";
+            }
+        } else {
+            title = playerName + " is no longer AFK";
+        }
+        
+        String json = createEmbedByName(title, null, COLOR_AFK, playerName);
+        sendWebhook(json);
+    }
+
     private String createEmbed(String title, String description, int color, Player player) {
         String uuid = player.getUniqueId().toString().replace("-", "");
         String avatarUrl = "https://mc-heads.net/avatar/" + uuid + "/100";
-        
+        return buildEmbedJson(title, description, color, avatarUrl);
+    }
+
+    private String createEmbedByName(String title, String description, int color, String playerName) {
+        String avatarUrl = "https://mc-heads.net/avatar/" + playerName + "/100";
+        return buildEmbedJson(title, description, color, avatarUrl);
+    }
+    
+    private String buildEmbedJson(String title, String description, int color, String avatarUrl) {
         StringBuilder json = new StringBuilder();
         json.append("{");
         
-        // Custom webhook appearance
         if (!plugin.getConfig().getDiscordUsername().isEmpty()) {
             json.append("\"username\":\"").append(escapeJson(plugin.getConfig().getDiscordUsername())).append("\",");
         }
@@ -83,23 +110,17 @@ public class DiscordWebhook {
             json.append("\"avatar_url\":\"").append(escapeJson(plugin.getConfig().getDiscordAvatarUrl())).append("\",");
         }
         
-        // Embed
         json.append("\"embeds\":[{");
-        
-        // Author with avatar
         json.append("\"author\":{");
         json.append("\"name\":\"").append(escapeJson(title)).append("\",");
         json.append("\"icon_url\":\"").append(avatarUrl).append("\"");
         json.append("}");
         
-        // Description if provided
         if (description != null && !description.isEmpty()) {
             json.append(",\"description\":\"").append(escapeJson(description)).append("\"");
         }
         
-        // Color
         json.append(",\"color\":").append(color);
-        
         json.append("}]}");
         
         return json.toString();

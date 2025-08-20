@@ -1,5 +1,6 @@
 package com.velocityessentials.backend;
 
+import com.velocityessentials.backend.commands.AFKCommand;
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
@@ -21,8 +22,10 @@ import me.clip.placeholderapi.PlaceholderAPI;
 public class VelocityEssentialsBackend extends JavaPlugin {
     public static final String CHANNEL = "velocityessentials:main";
     
-    private boolean debug;
-    private String serverName;
+    public boolean debug;
+    public String serverName;
+
+    private AFKManager afkManager;
     
     @Override
     public void onEnable() {
@@ -31,7 +34,7 @@ public class VelocityEssentialsBackend extends JavaPlugin {
         loadConfiguration();
         
         // === SYSTEM 1: VANILLA MESSAGE SUPPRESSION ===
-        // Simple, standalone system - just like EssentialsX
+        // Simple, standalone system, NOT conditional on network messaging anymore
         if (getConfig().getBoolean("suppress-vanilla-join", false) || 
             getConfig().getBoolean("suppress-vanilla-quit", false)) {
             
@@ -42,17 +45,29 @@ public class VelocityEssentialsBackend extends JavaPlugin {
         }
         
         // === SYSTEM 2: NETWORK MESSAGING ===  
-        // Separate system for receiving custom messages from Velocity
+        // Separate system from vanilla message supression for receiving custom messages from Velocity
         if (getConfig().getBoolean("enable-network-messages", true)) {
             getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, new NetworkMessageHandler(this));
             getLogger().info("Network messaging enabled");
         }
         
-        // === SYSTEM 3: CHAT RELAY (Optional) ===
+        // === SYSTEM 3: CHAT RELAY ===
         if (getConfig().getBoolean("enable-chat-processing", false)) {
             getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
             getServer().getPluginManager().registerEvents(new ChatProcessor(this), this);
             getLogger().info("Chat processing enabled");
+        }
+
+        // === SYSTEM 4: AFK MANAGER ===
+        if (getConfig().getBoolean("afk.enabled", true)) {
+            getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
+            afkManager = new AFKManager(this);
+            
+            // Register /afk command
+            getCommand("afk").setExecutor(new AFKCommand(this, afkManager));
+            getCommand("afk").setAliases(java.util.List.of("away"));
+            
+            getLogger().info("AFK Manager enabled");
         }
         
         // Check for PlaceholderAPI if chat processing is enabled
@@ -67,6 +82,9 @@ public class VelocityEssentialsBackend extends JavaPlugin {
     
     @Override
     public void onDisable() {
+        if (afkManager != null) {
+            afkManager.shutdown();
+        }
         getServer().getMessenger().unregisterIncomingPluginChannel(this);
         getServer().getMessenger().unregisterOutgoingPluginChannel(this);
         getLogger().info("VelocityEssentials Backend disabled!");
@@ -75,6 +93,10 @@ public class VelocityEssentialsBackend extends JavaPlugin {
     private void loadConfiguration() {
         serverName = getConfig().getString("server-name", "unknown");
         debug = getConfig().getBoolean("debug", false);
+    }
+
+    public AFKManager getAFKManager() {
+        return afkManager;
     }
     
     // === VANILLA MESSAGE SUPPRESSION ===
@@ -133,6 +155,7 @@ public class VelocityEssentialsBackend extends JavaPlugin {
                 case "network_join" -> handleNetworkJoin(in);
                 case "network_leave" -> handleNetworkLeave(in);  
                 case "network_switch" -> handleNetworkSwitch(in);
+                case "network_afk" -> handleNetworkAFK(in);
                 case "test" -> handleTest(in);
             }
         }
@@ -176,6 +199,20 @@ public class VelocityEssentialsBackend extends JavaPlugin {
                 plugin.getLogger().info("Network switch: " + customMessage);
             }
         }
+
+        private void handleNetworkAFK(ByteArrayDataInput in) {
+            String playerName = in.readUTF();
+            boolean isAfk = in.readBoolean();
+            boolean manual = in.readBoolean();
+            
+            if (plugin.getAFKManager() != null) {
+                plugin.getAFKManager().handleNetworkAFKMessage(playerName, isAfk, manual);
+            }
+            
+            if (plugin.debug) {
+                plugin.getLogger().info("Network AFK: " + playerName + " is " + (isAfk ? "now" : "no longer") + " AFK");
+            }
+        }
         
         private void handleTest(ByteArrayDataInput in) {
             String testMessage = in.readUTF();
@@ -212,7 +249,7 @@ public class VelocityEssentialsBackend extends JavaPlugin {
             // Clean up prefix for Discord (remove color codes)
             prefix = ChatColor.stripColor(prefix).trim();
             
-            // Convert [Owner] to **Owner** for Discord
+            // Convert [Prefix] to **Prefix** for Discord
             if (prefix.startsWith("[") && prefix.endsWith("]")) {
                 prefix = "**" + prefix.substring(1, prefix.length() - 1) + "**";
             } else if (!prefix.isEmpty()) {

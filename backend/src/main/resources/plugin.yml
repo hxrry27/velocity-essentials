@@ -5,3 +5,21 @@ api-version: "1.20"
 author: hxrry27
 description: Backend companion for VelocityEssentials
 softdepend: [PlaceholderAPI]
+
+commands:
+  afk:
+    description: Toggle AFK status
+    usage: /<command>
+    aliases: [away]
+    permission: velocityessentials.afk
+
+permissions:
+  velocityessentials.afk:
+    description: Allows use of /afk command
+    default: true
+  velocityessentials.afk.exempt:
+    description: Exempt from automatic AFK
+    default: op
+  velocityessentials.afk.kickexempt:
+    description: Exempt from being kicked when AFK
+    default: op

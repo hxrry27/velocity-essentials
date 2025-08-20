@@ -18,5 +18,37 @@ enable-network-messages: true
 # Enable chat processing for Discord integration
 enable-chat-processing: false
 
+# ===== AFK SYSTEM =====
+afk:
+  # Enable AFK detection (mimics EssentialsX and other common afk systems)
+  enabled: true
+  
+  # Time in seconds before a player is marked as AFK (default: 300 = 5 minutes)
+  auto-afk-time: 300
+  
+  # Broadcast AFK status changes to chat
+  broadcast: true
+  
+  # Cancel AFK on certain actions
+  cancel-on-move: true
+  cancel-on-interact: true
+  
+  # Kick settings for AFK players
+  kick:
+    # Enable kicking AFK players
+    enabled: false
+    
+    # Additional time in seconds after going AFK before kicking (default: 600 = 10 minutes)
+    # Total time = auto-afk-time + kick.time
+    time: 600
+    
+    # Kick message
+    message: "You have been kicked for being AFK too long!"
+  
+  # Permissions
+  # velocityessentials.afk - Use /afk command
+  # velocityessentials.afk.exempt - Exempt from auto-AFK
+  # velocityessentials.afk.kickexempt - Exempt from AFK kick
+
 # ===== DEBUG =====
-debug: true
+debug: false

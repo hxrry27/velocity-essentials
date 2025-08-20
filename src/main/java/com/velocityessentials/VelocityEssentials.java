@@ -17,6 +17,7 @@ import com.velocityessentials.database.PlayerData;
 import com.velocityessentials.listeners.PluginMessageListener;
 import com.velocityessentials.listeners.PlayerListener;
 import com.velocityessentials.listeners.ServerSwitchListener;
+import com.velocityessentials.modules.afk.AFKHandler;
 import com.velocityessentials.modules.discord.DiscordWebhook;
 import com.velocityessentials.modules.messages.MessageHandler;
 import com.velocityessentials.utils.PlayerTracker;
@@ -48,6 +49,7 @@ public class VelocityEssentials {
     private Database database;
     private PlayerData playerData;
     private PlayerTracker playerTracker;
+    private AFKHandler afkHandler;
     
     // Modules
     private DiscordWebhook discordWebhook;
@@ -89,6 +91,7 @@ public class VelocityEssentials {
         playerTracker = new PlayerTracker(this);
         discordWebhook = new DiscordWebhook(this);
         messageHandler = new MessageHandler(this);
+        afkHandler = new AFKHandler(this);
         
         // Register plugin messaging channel
         server.getChannelRegistrar().register(CHANNEL);
@@ -217,5 +220,9 @@ public class VelocityEssentials {
     
     public MessageHandler getMessageHandler() {
         return messageHandler;
+    }
+
+    public AFKHandler getAFKHandler() {
+        return afkHandler;
     }
 }

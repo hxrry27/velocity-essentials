@@ -6,7 +6,7 @@ database:
   # No configuration needed! Just works out of the box.
   type: "sqlite"
 
-# Server memory settings  
+# ===== SERVER MEMORY SETTINGS =====
 server-memory:
   # Enable server memory feature
   enabled: true
@@ -28,6 +28,7 @@ server-memory:
   # Permission to bypass server memory (always go to fallback)
   bypass-permission: "velocityessentials.bypass"
 
+# ===== DISCORD SETTINGS =====
 discord:
   # Enable Discord webhooks
   enabled: false
@@ -44,8 +45,11 @@ discord:
   
   # Which server should trigger first-time announcements
   first-time-server: "lobby"
+
+  # Whether to share afk messages in discord chat
+  show-afk: true
   
-  # ===== CHAT RELAY SETTINGS =====
+  # ===== chat relay =====
   # Enable chat relay to Discord
   chat-relay: true
   
@@ -76,7 +80,7 @@ discord:
     "velocityessentials.prefix.developer": "**Dev**"
     "velocityessentials.prefix.builder": "**Builder**"
 
-# In-game messages
+# ===== IN GAME MESSAGE SETTINGS =====
 messages:
   # Enable custom in-game messages (requires backend plugin)
   custom-enabled: true
