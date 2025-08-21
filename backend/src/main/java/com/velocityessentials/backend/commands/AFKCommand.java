@@ -33,8 +33,26 @@ public class AFKCommand implements CommandExecutor {
             return true;
         }
         
-        // Toggle AFK status
-        afkManager.toggleAFK(player);
+         String afkMessage = null;
+        if (args.length > 0) {
+            // Check if they have permission to set AFK messages
+            if (!player.hasPermission("velocityessentials.afk.message")) {
+                player.sendMessage(Component.text("You don't have permission to set AFK messages!", NamedTextColor.RED));
+                return true;
+            }
+            
+            // Join all arguments as the AFK message
+            afkMessage = String.join(" ", args);
+            
+            // Optional: Limit message length
+            if (afkMessage.length() > 50) {
+                player.sendMessage(Component.text("AFK message is too long! Maximum 50 characters.", NamedTextColor.RED));
+                return true;
+            }
+        }
+        
+        // Toggle AFK status with message
+        afkManager.toggleAFK(player, afkMessage);
         
         return true;
     }

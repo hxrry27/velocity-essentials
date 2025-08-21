@@ -69,14 +69,21 @@ public class DiscordWebhook {
         sendWebhook(json);
     }
 
-    public void sendAFKMessage(String playerName, boolean isAfk, boolean manual) {
+    public void sendAFKMessage(String playerName, boolean isAfk, boolean manual, String message) {
         if (!plugin.getConfig().isDiscordEnabled()) return;
-        if (!plugin.getConfig().isDiscordAFKEnabled()) return; // Check if AFK messages are enabled for Discord
+        if (!plugin.getConfig().isDiscordAFKEnabled()) return; // check toggle for discord AFK messages
         
         String title;
+        String description = null;
+        
         if (isAfk) {
             if (manual) {
-                title = playerName + " is now AFK";
+                if (message != null && !message.isEmpty()) {
+                    title = playerName + " is now AFK";
+                    description = "**Reason:** " + message;
+                } else {
+                    title = playerName + " is now AFK";
+                }
             } else {
                 title = playerName + " has gone AFK";
             }
@@ -84,7 +91,7 @@ public class DiscordWebhook {
             title = playerName + " is no longer AFK";
         }
         
-        String json = createEmbedByName(title, null, COLOR_AFK, playerName);
+        String json = createEmbedByName(title, description, COLOR_AFK, playerName);
         sendWebhook(json);
     }
 

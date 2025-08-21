@@ -8,14 +8,17 @@ softdepend: [PlaceholderAPI]
 
 commands:
   afk:
-    description: Toggle AFK status
-    usage: /<command>
+    description: Toggle AFK status or set AFK with a message
+    usage: /<command> [message]
     aliases: [away]
     permission: velocityessentials.afk
 
 permissions:
   velocityessentials.afk:
     description: Allows use of /afk command
+    default: true
+  velocityessentials.afk.message:
+    description: Allows setting custom AFK messages with /afk <message>
     default: true
   velocityessentials.afk.exempt:
     description: Exempt from automatic AFK

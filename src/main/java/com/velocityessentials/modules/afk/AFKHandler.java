@@ -7,6 +7,7 @@ import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,49 +15,57 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AFKHandler {
     private final VelocityEssentials plugin;
     private final Set<UUID> afkPlayers = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, String> afkMessages = new ConcurrentHashMap<>();
     
     public AFKHandler(VelocityEssentials plugin) {
         this.plugin = plugin;
     }
     
     /**
-     * Handle AFK status change from a backend server
+     * handle AFK status change from a backend server
      */
-    public void handleAFKStatus(String uuidString, String playerName, boolean isAfk, boolean manual, String sourceServer) {
+    public void handleAFKStatus(String uuidString, String playerName, boolean isAfk, boolean manual, String message, String sourceServer) {
         UUID uuid = UUID.fromString(uuidString);
         
-        // Update our tracking
+        // update our tracking
         if (isAfk) {
             afkPlayers.add(uuid);
+            if (message != null && !message.isEmpty()) {
+                afkMessages.put(uuid, message);
+            }
         } else {
             afkPlayers.remove(uuid);
+            afkMessages.remove(uuid);
         }
         
         if (plugin.getConfig().isDebug()) {
             plugin.getLogger().info("AFK status change: " + playerName + " is " + 
-                (isAfk ? "now" : "no longer") + " AFK (from " + sourceServer + ")");
+                (isAfk ? "now" : "no longer") + " AFK" +
+                (message != null && !message.isEmpty() ? " (Message: " + message + ")" : "") +
+                " (from " + sourceServer + ")");
         }
         
-        // Send to Discord if enabled
+        // send to Discord if enabled
         if (plugin.getConfig().isDiscordEnabled()) {
-            plugin.getDiscordWebhook().sendAFKMessage(playerName, isAfk, manual);
+            plugin.getDiscordWebhook().sendAFKMessage(playerName, isAfk, manual, message);
         }
         
-        // Broadcast to all servers
-        broadcastAFKMessage(playerName, isAfk, manual);
+        // broadcast
+        broadcastAFKMessage(playerName, isAfk, manual, message);
     }
     
     /**
-     * Broadcast AFK message to all servers
+     * broadcast AFK message to all servers TODO: add whitelist / blacklist
      */
-    private void broadcastAFKMessage(String playerName, boolean isAfk, boolean manual) {
+    private void broadcastAFKMessage(String playerName, boolean isAfk, boolean manual, String message) {
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        out.writeUTF("network_afk");
+        out.writeUTF("network_afk_message");
         out.writeUTF(playerName);
         out.writeBoolean(isAfk);
         out.writeBoolean(manual);
+        out.writeUTF(message != null ? message : "");
         
-        // Send to all connected servers
+        // send to all connected servers
         for (RegisteredServer server : plugin.getServer().getAllServers()) {
             if (!server.getPlayersConnected().isEmpty()) {
                 server.sendPluginMessage(VelocityEssentials.CHANNEL, out.toByteArray());
@@ -65,35 +74,50 @@ public class AFKHandler {
     }
     
     /**
-     * Check if a player is AFK
+     * check if a UUID is AFK 
      */
     public boolean isAFK(UUID uuid) {
         return afkPlayers.contains(uuid);
     }
     
     /**
-     * Check if a player is AFK
+     * check if a player is AFK
      */
     public boolean isAFK(Player player) {
         return isAFK(player.getUniqueId());
     }
     
     /**
-     * Remove player from AFK list (used when they disconnect)
+     * get AFK message for a player UUID
      */
-    public void removePlayer(UUID uuid) {
-        afkPlayers.remove(uuid);
+    public String getAFKMessage(UUID uuid) {
+        return afkMessages.get(uuid);
     }
     
     /**
-     * Get all AFK players
+     * get AFK message for a player
+     */
+    public String getAFKMessage(Player player) {
+        return getAFKMessage(player.getUniqueId());
+    }
+    
+    /**
+     * remove player from AFK list (used when they onPlayerDisconnect)
+     */
+    public void removePlayer(UUID uuid) {
+        afkPlayers.remove(uuid);
+        afkMessages.remove(uuid);
+    }
+    
+    /**
+     * get all AFK players UUID
      */
     public Set<UUID> getAFKPlayers() {
         return new HashSet<>(afkPlayers);
     }
     
     /**
-     * Get count of AFK players
+     * get count of AFK players
      */
     public int getAFKCount() {
         return afkPlayers.size();

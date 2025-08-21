@@ -25,6 +25,7 @@ public class PluginMessageListener {
         switch (subchannel) {
             case "chat" -> handleChat(in);
             case "afk_status" -> handleAFKStatus(in);
+            case "afk_status_message" -> handleAFKStatusWithMessage(in);
             default -> {
                 if (plugin.getConfig().isDebug()) {
                     plugin.getLogger().info("Unknown subchannel: " + subchannel);
@@ -42,9 +43,9 @@ public class PluginMessageListener {
         String message = in.readUTF();
         String serverName = in.readUTF();
        
-        // Get the player
+        // get the player
         plugin.getServer().getPlayer(UUID.fromString(uuid)).ifPresent(player -> {
-            // Send to Discord with the pre-formatted prefix from backend
+            // send to Discord with the pre-formatted prefix from backend
             plugin.getDiscordWebhook().sendFormattedChatMessage(
                 player, serverName, prefix, message
             );
@@ -58,13 +59,32 @@ public class PluginMessageListener {
         boolean manual = in.readBoolean();
         String sourceServer = in.readUTF();
         
-        // Handle the AFK status change
+        // handle the afk status change, includes backwards compat / people who choose to not add a message
         if (plugin.getAFKHandler() != null) {
-            plugin.getAFKHandler().handleAFKStatus(uuid, playerName, isAfk, manual, sourceServer);
+            plugin.getAFKHandler().handleAFKStatus(uuid, playerName, isAfk, manual, null, sourceServer);
         }
         
         if (plugin.getConfig().isDebug()) {
             plugin.getLogger().info("Received AFK status: " + playerName + " = " + isAfk + " from " + sourceServer);
+        }
+    }
+
+    private void handleAFKStatusWithMessage(ByteArrayDataInput in) {
+        String uuid = in.readUTF();
+        String playerName = in.readUTF();
+        boolean isAfk = in.readBoolean();
+        boolean manual = in.readBoolean();
+        String message = in.readUTF();
+        String sourceServer = in.readUTF();
+        
+        // Handle the AFK status change with message
+        if (plugin.getAFKHandler() != null) {
+            String afkMessage = message.isEmpty() ? null : message;
+            plugin.getAFKHandler().handleAFKStatus(uuid, playerName, isAfk, manual, afkMessage, sourceServer);
+        }
+        
+        if (plugin.getConfig().isDebug()) {
+            plugin.getLogger().info("Received AFK status: " + playerName + " = " + isAfk + (message.isEmpty() ? "" : " (Message: " + message + ")") + " from " + sourceServer);
         }
     }
 }

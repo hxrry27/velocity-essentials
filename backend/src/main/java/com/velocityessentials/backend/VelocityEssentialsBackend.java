@@ -156,6 +156,7 @@ public class VelocityEssentialsBackend extends JavaPlugin {
                 case "network_leave" -> handleNetworkLeave(in);  
                 case "network_switch" -> handleNetworkSwitch(in);
                 case "network_afk" -> handleNetworkAFK(in);
+                case "network_afk_message" -> handleNetworkAFKWithMessage(in);
                 case "test" -> handleTest(in);
             }
         }
@@ -211,6 +212,22 @@ public class VelocityEssentialsBackend extends JavaPlugin {
             
             if (plugin.debug) {
                 plugin.getLogger().info("Network AFK: " + playerName + " is " + (isAfk ? "now" : "no longer") + " AFK");
+            }
+        }
+
+        private void handleNetworkAFKWithMessage(ByteArrayDataInput in) {
+            String playerName = in.readUTF();
+            boolean isAfk = in.readBoolean();
+            boolean manual = in.readBoolean();
+            String afkMessage = in.readUTF();
+            
+            if (plugin.getAFKManager() != null) {
+                String message = afkMessage.isEmpty() ? null : afkMessage;
+                plugin.getAFKManager().handleNetworkAFKMessage(playerName, isAfk, manual, message);
+            }
+            
+            if (plugin.debug) {
+                plugin.getLogger().info("Network AFK: " + playerName + " is " + (isAfk ? "now" : "no longer") + " AFK" + (afkMessage.isEmpty() ? "" : " (Message: " + afkMessage + ")"));
             }
         }
         

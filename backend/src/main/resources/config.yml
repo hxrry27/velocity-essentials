@@ -33,6 +33,10 @@ afk:
   cancel-on-move: true
   cancel-on-interact: true
   
+  # Exclude AFK players from sleep count (requires Paper/Purpur)
+  # This makes AFK players not count towards the players required to sleep
+  exclude-from-sleep: true
+  
   # Kick settings for AFK players
   kick:
     # Enable kicking AFK players
@@ -47,6 +51,7 @@ afk:
   
   # Permissions
   # velocityessentials.afk - Use /afk command
+  # velocityessentials.afk.message - Set custom AFK messages with /afk <message>
   # velocityessentials.afk.exempt - Exempt from auto-AFK
   # velocityessentials.afk.kickexempt - Exempt from AFK kick
 
