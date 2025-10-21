@@ -25,8 +25,6 @@ import com.velocityessentials.modules.restart.RestartScheduler;
 import com.velocityessentials.utils.PlayerTracker;
 import com.velocityessentials.stats.StatsSystem;
 import com.velocityessentials.stats.StatsAPIHandler;
-import com.velocityessentials.modules.restart.RestartScheduler;
-import com.velocityessentials.commands.RestartCommand;
 
 import org.slf4j.Logger;
 
@@ -153,15 +151,6 @@ public class VelocityEssentials {
             restartScheduler = new RestartScheduler(this);
             logger.info("Restart scheduler initialized");
         }
-
-        // Register restart command
-        CommandMeta restartMeta = server.getCommandManager()
-            .metaBuilder("restart")
-            .aliases("autorestart", "schedulerestart")
-            .plugin(this)
-            .build();
-
-        server.getCommandManager().register(restartMeta, new RestartCommand(this));
 
         // Schedule cleanup task
         server.getScheduler()

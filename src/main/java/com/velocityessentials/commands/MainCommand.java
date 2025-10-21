@@ -8,13 +8,17 @@ import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class MainCommand implements SimpleCommand {
     private final VelocityEssentials plugin;
+    private final RestartCommand restartCommand;
     
     public MainCommand(VelocityEssentials plugin) {
         this.plugin = plugin;
+        this.restartCommand = new RestartCommand(plugin);
     }
     
     @Override
@@ -27,6 +31,36 @@ public class MainCommand implements SimpleCommand {
             return;
         }
         
+        // check if it's a restart subcommand
+        if (args[0].equalsIgnoreCase("restart")) {
+            // pass remaining args to restart command
+            String[] restartArgs = args.length > 1 ? 
+                Arrays.copyOfRange(args, 1, args.length) : 
+                new String[0];
+            
+            // create new invocation for restart command
+            SimpleCommand.Invocation restartInvocation = new SimpleCommand.Invocation() {
+                @Override
+                public CommandSource source() {
+                    return source;
+                }
+                
+                @Override
+                public String[] arguments() {
+                    return restartArgs;
+                }
+                
+                @Override
+                public String alias() {
+                    return "restart";
+                }
+            };
+            
+            restartCommand.execute(restartInvocation);
+            return;
+        }
+        
+        // handle other ve commands
         switch (args[0].toLowerCase()) {
             case "reload" -> handleReload(source);
             case "info" -> handleInfo(source, args);
@@ -65,7 +99,7 @@ public class MainCommand implements SimpleCommand {
                 return;
             }
             
-            // Calculate time ago
+            // calculate time ago
             long lastSeenAgo = System.currentTimeMillis() - info.lastSeen.getTime();
             String timeAgo = formatTimeAgo(lastSeenAgo);
             
@@ -125,21 +159,47 @@ public class MainCommand implements SimpleCommand {
     
     private void showHelp(CommandSource source) {
         source.sendMessage(Component.text("=== VelocityEssentials Commands ===", NamedTextColor.GOLD));
+        
+        // restart commands
+        source.sendMessage(Component.text("/ve restart check", NamedTextColor.YELLOW)
+            .append(Component.text(" - view next restart time", NamedTextColor.GRAY)));
+        
+        if (source.hasPermission("velocityessentials.restart.delay")) {
+            source.sendMessage(Component.text("/ve restart delay <minutes> [reason]", NamedTextColor.YELLOW)
+                .append(Component.text(" - delay restart", NamedTextColor.GRAY)));
+        }
+        
+        if (source.hasPermission("velocityessentials.restart.cancel")) {
+            source.sendMessage(Component.text("/ve restart cancel [reason]", NamedTextColor.YELLOW)
+                .append(Component.text(" - cancel restart", NamedTextColor.GRAY)));
+        }
+        
+        if (source.hasPermission("velocityessentials.restart.now")) {
+            source.sendMessage(Component.text("/ve restart now <server>", NamedTextColor.YELLOW)
+                .append(Component.text(" - force restart", NamedTextColor.GRAY)));
+        }
+        
+        if (source.hasPermission("velocityessentials.restart.reload")) {
+            source.sendMessage(Component.text("/ve restart list", NamedTextColor.YELLOW)
+                .append(Component.text(" - list all schedules", NamedTextColor.GRAY)));
+        }
+        
+        // other commands
         if (source.hasPermission("velocityessentials.admin.reload")) {
             source.sendMessage(Component.text("/ve reload", NamedTextColor.YELLOW)
-                .append(Component.text(" - Reload configuration", NamedTextColor.GRAY)));
+                .append(Component.text(" - reload configuration", NamedTextColor.GRAY)));
         }
         if (source.hasPermission("velocityessentials.admin.info")) {
             source.sendMessage(Component.text("/ve info <player>", NamedTextColor.YELLOW)
-                .append(Component.text(" - View player information", NamedTextColor.GRAY)));
+                .append(Component.text(" - view player information", NamedTextColor.GRAY)));
         }
         if (source.hasPermission("velocityessentials.admin.test")) {
             source.sendMessage(Component.text("/ve test <server>", NamedTextColor.YELLOW)
-                .append(Component.text(" - Test backend connection", NamedTextColor.GRAY)));
+                .append(Component.text(" - test backend connection", NamedTextColor.GRAY)));
         }
         if (source.hasPermission("velocityessentials.admin.debug")) {
             source.sendMessage(Component.text("/ve debug", NamedTextColor.YELLOW)
-                .append(Component.text(" - Show debug information", NamedTextColor.GRAY)));
+                .append(Component.text(" - show debug information", NamedTextColor.GRAY)));
         }
     }
     
@@ -147,25 +207,60 @@ public class MainCommand implements SimpleCommand {
     public List<String> suggest(Invocation invocation) {
         String[] args = invocation.arguments();
         
-        if (args.length == 0) {
-            return List.of("reload", "info", "test", "debug");
+        if (args.length == 0 || args.length == 1) {
+            List<String> suggestions = new ArrayList<>(List.of("restart"));
+            
+            if (invocation.source().hasPermission("velocityessentials.admin.reload")) {
+                suggestions.add("reload");
+            }
+            if (invocation.source().hasPermission("velocityessentials.admin.info")) {
+                suggestions.add("info");
+            }
+            if (invocation.source().hasPermission("velocityessentials.admin.test")) {
+                suggestions.add("test");
+            }
+            if (invocation.source().hasPermission("velocityessentials.admin.debug")) {
+                suggestions.add("debug");
+            }
+            
+            return suggestions.stream()
+                .filter(cmd -> args.length == 0 || cmd.startsWith(args[0].toLowerCase()))
+                .toList();
         }
         
-        if (args.length == 1) {
-            return List.of("reload", "info", "test", "debug").stream()
-                .filter(cmd -> cmd.startsWith(args[0].toLowerCase()))
-                .toList();
+        // delegate restart suggestions to restart command
+        if (args.length >= 2 && args[0].equalsIgnoreCase("restart")) {
+            String[] restartArgs = Arrays.copyOfRange(args, 1, args.length);
+            
+            SimpleCommand.Invocation restartInvocation = new SimpleCommand.Invocation() {
+                @Override
+                public CommandSource source() {
+                    return invocation.source();
+                }
+                
+                @Override
+                public String[] arguments() {
+                    return restartArgs;
+                }
+                
+                @Override
+                public String alias() {
+                    return "restart";
+                }
+            };
+            
+            return restartCommand.suggest(restartInvocation);
         }
         
         if (args.length == 2) {
             if (args[0].equalsIgnoreCase("info")) {
-                // Suggest online players
+                // suggest online players
                 return plugin.getServer().getAllPlayers().stream()
                     .map(Player::getUsername)
                     .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
                     .toList();
             } else if (args[0].equalsIgnoreCase("test")) {
-                // Suggest servers
+                // suggest servers
                 return plugin.getServer().getAllServers().stream()
                     .map(server -> server.getServerInfo().getName())
                     .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
@@ -178,6 +273,12 @@ public class MainCommand implements SimpleCommand {
     
     @Override
     public boolean hasPermission(Invocation invocation) {
+        // anyone can use /ve restart check
+        if (invocation.arguments().length > 0 && 
+            invocation.arguments()[0].equalsIgnoreCase("restart")) {
+            return true;
+        }
+        
         return invocation.source().hasPermission("velocityessentials.admin");
     }
     
