@@ -48,12 +48,12 @@ afk:
     
     # Kick message
     message: "You have been kicked for being AFK too long!"
-  
-  # Permissions
-  # velocityessentials.afk - Use /afk command
-  # velocityessentials.afk.message - Set custom AFK messages with /afk <message>
-  # velocityessentials.afk.exempt - Exempt from auto-AFK
-  # velocityessentials.afk.kickexempt - Exempt from AFK kick
+
+# ===== AUTO RESTART SYSTEM =====
+# Controlled by Velocity proxy
+auto-restart:
+  # Enable restart handler (kill switch for this specific server)
+  enabled: true
 
 # ===== DEBUG =====
 debug: false

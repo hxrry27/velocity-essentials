@@ -8,10 +8,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import com.velocityessentials.modules.restart.data.RestartSchedule;
+import com.velocityessentials.modules.restart.RestartUtil;
+import java.time.DayOfWeek;
+import java.time.ZoneId;
+import java.util.Set;
+
 
 public class Config {
     private final VelocityEssentials plugin;
@@ -64,6 +71,12 @@ public class Config {
     private int statsApiPort;
     private String statsApiKey;
     private String statsApiBind;
+
+    // Restart
+    private boolean autoRestartEnabled;
+    private String autoRestartTimezone;
+    private int autoRestartDelayCheckInterval;
+    private Map<String, RestartSchedule> restartSchedules;
 
     // Other
     private boolean debug;
@@ -156,6 +169,12 @@ public class Config {
             CommentedConfigurationNode statsNode = rootNode.node("stats");
             statsEnabled = statsNode.node("enabled").getBoolean(false);
             statsUpdateInterval = statsNode.node("update-interval").getInt(10);
+
+            // Auto Restart settings
+            CommentedConfigurationNode restartNode = rootNode.node("auto-restart");
+            autoRestartEnabled = restartNode.node("enabled").getBoolean(false);
+            autoRestartTimezone = restartNode.node("timezone").getString("UTC");
+            autoRestartDelayCheckInterval = restartNode.node("delay-check-interval").getInt(60);
             
             // Load server paths
             statsServerPaths = new HashMap<>();
@@ -172,6 +191,8 @@ public class Config {
             statsApiPort = apiNode.node("port").getInt(8080);
             statsApiKey = apiNode.node("auth-key").getString("change-me");
             statsApiBind = apiNode.node("bind").getString("0.0.0.0");
+
+            loadRestartConfig();
 
             return true;
             
@@ -225,6 +246,11 @@ public class Config {
     public String getStatsApiBind() { return statsApiBind; }
     public boolean isDiscordAFKEnabled() { return discordAFKEnabled; }
     
+    // Restart getters
+    public boolean isAutoRestartEnabled() { return autoRestartEnabled; }
+    public String getAutoRestartTimezone() { return autoRestartTimezone; }
+    public int getAutoRestartDelayCheckInterval() { return autoRestartDelayCheckInterval; }
+    public Map<String, RestartSchedule> getRestartSchedules() { return restartSchedules; }
 
     public boolean isDebug() { return debug; }
 
@@ -249,5 +275,145 @@ public class Config {
         }
         
         return message;
+    }
+
+    private void loadRestartConfig() {
+        try {
+            CommentedConfigurationNode restartNode = rootNode.node("auto-restart");
+            autoRestartEnabled = restartNode.node("enabled").getBoolean(false);
+            autoRestartTimezone = restartNode.node("timezone").getString("UTC");
+            autoRestartDelayCheckInterval = restartNode.node("delay-check-interval").getInt(60);
+            
+            restartSchedules = new HashMap<>();
+            
+            if (!autoRestartEnabled) {
+                plugin.getLogger().info("Auto-restart system is disabled");
+                return;
+            }
+            
+            CommentedConfigurationNode schedulesNode = restartNode.node("schedules");
+            
+            if (schedulesNode.virtual() || schedulesNode.empty()) {
+                plugin.getLogger().warn("No restart schedules configured!");
+                return;
+            }
+            
+            Map<Object, ? extends CommentedConfigurationNode> scheduleMap = schedulesNode.childrenMap();
+            
+            for (Map.Entry<Object, ? extends CommentedConfigurationNode> entry : scheduleMap.entrySet()) {
+                String scheduleName = entry.getKey().toString();
+                CommentedConfigurationNode scheduleConfig = entry.getValue();
+                
+                try {
+                    boolean enabled = scheduleConfig.node("enabled").getBoolean(true);
+                    List<String> servers = scheduleConfig.node("servers").getList(String.class, new ArrayList<>());
+                    String time = scheduleConfig.node("time").getString("04:00");
+                    List<String> dayStrings = scheduleConfig.node("days").getList(String.class, List.of("*"));
+                    int minPlayers = scheduleConfig.node("min-players-delay").getInt(0);
+                    
+                    CommentedConfigurationNode warningsNode = scheduleConfig.node("warnings");
+                    List<Integer> warningIntervals = warningsNode.node("intervals")
+                        .getList(Integer.class, List.of(300, 180, 60, 30, 10));
+                    String warningSound = warningsNode.node("sound")
+                        .getString("ENTITY_EXPERIENCE_ORB_PICKUP");
+                    
+                    Set<DayOfWeek> days = RestartUtil.parseDays(dayStrings);
+                    ZoneId timezone = ZoneId.of(autoRestartTimezone);
+                    
+                    RestartSchedule.Builder builder = RestartSchedule.builder(scheduleName)
+                        .enabled(enabled)
+                        .servers(servers)
+                        .time(time, days, timezone)
+                        .warningIntervals(warningIntervals)
+                        .warningSound(warningSound)
+                        .minPlayersDelay(minPlayers);
+                    
+                    CommentedConfigurationNode commandsNode = scheduleConfig.node("commands");
+                    
+                    parseCommands(
+                        commandsNode.node("before"),
+                        builder,
+                        RestartSchedule.CommandTiming.BEFORE
+                    );
+                    
+                    parseCommands(
+                        commandsNode.node("after"),
+                        builder,
+                        RestartSchedule.CommandTiming.AFTER
+                    );
+                    
+                    RestartSchedule schedule = builder.build();
+                    List<String> errors = schedule.validate();
+                    
+                    if (!errors.isEmpty()) {
+                        plugin.getLogger().error("Schedule '" + scheduleName + "' has validation errors:");
+                        errors.forEach(error -> plugin.getLogger().error("  - " + error));
+                        continue;
+                    }
+                    
+                    restartSchedules.put(scheduleName, schedule);
+                    plugin.getLogger().info("Loaded restart schedule: " + scheduleName + 
+                        " (" + servers.size() + " servers, " + 
+                        (enabled ? "enabled" : "disabled") + ")");
+                    
+                } catch (Exception e) {
+                    plugin.getLogger().error("Failed to load restart schedule: " + scheduleName, e);
+                }
+            }
+            
+            plugin.getLogger().info("Loaded " + restartSchedules.size() + " restart schedule(s)");
+            
+        } catch (Exception e) {
+            plugin.getLogger().error("Failed to load restart configuration", e);
+            autoRestartEnabled = false;
+        }
+    }
+
+    private void parseCommands(
+        CommentedConfigurationNode commandsNode,
+        RestartSchedule.Builder builder,
+        RestartSchedule.CommandTiming timing
+    ) {
+        if (commandsNode.virtual() || !commandsNode.isList()) {
+            return;
+        }
+        
+        try {
+            List<?> commandsList = commandsNode.getList(Object.class, new ArrayList<>());
+            
+            for (Object cmdObj : commandsList) {
+                if (!(cmdObj instanceof Map)) {
+                    continue;
+                }
+                
+                @SuppressWarnings("unchecked")
+                Map<String, Object> cmdMap = (Map<String, Object>) cmdObj;
+                
+                Object delayObj = cmdMap.get("delay");
+                if (delayObj == null) {
+                    plugin.getLogger().warn("Command missing 'delay' field, skipping");
+                    continue;
+                }
+                int delay = ((Number) delayObj).intValue();
+                
+                String command = (String) cmdMap.get("command");
+                if (command == null || command.isEmpty()) {
+                    plugin.getLogger().warn("Command missing 'command' field, skipping");
+                    continue;
+                }
+                
+                String targetStr = (String) cmdMap.getOrDefault("target", "server");
+                RestartSchedule.CommandTarget target = 
+                    targetStr.equalsIgnoreCase("proxy") ?
+                    RestartSchedule.CommandTarget.PROXY :
+                    RestartSchedule.CommandTarget.SERVER;
+                
+                builder.addCommand(new RestartSchedule.ScheduledCommand(
+                    command, delay, timing, target
+                ));
+            }
+        } catch (Exception e) {
+            plugin.getLogger().error("Failed to parse commands", e);
+        }
     }
 }

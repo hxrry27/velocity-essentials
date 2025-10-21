@@ -18,6 +18,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import me.clip.placeholderapi.PlaceholderAPI;
+import com.velocityessentials.backend.restart.RestartHandler;
 
 public class VelocityEssentialsBackend extends JavaPlugin {
     public static final String CHANNEL = "velocityessentials:main";
@@ -26,6 +27,7 @@ public class VelocityEssentialsBackend extends JavaPlugin {
     public String serverName;
 
     private AFKManager afkManager;
+    private RestartHandler restartHandler;
     
     @Override
     public void onEnable() {
@@ -69,6 +71,13 @@ public class VelocityEssentialsBackend extends JavaPlugin {
             
             getLogger().info("AFK Manager enabled");
         }
+
+        // === SYSTEM 5: RESTART HANDLER ===
+        if (getConfig().getBoolean("auto-restart.enabled", true)) {
+            getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
+            restartHandler = new RestartHandler(this);
+            getLogger().info("Restart Handler enabled");
+        }
         
         // Check for PlaceholderAPI if chat processing is enabled
         if (getConfig().getBoolean("enable-chat-processing", false) && 
@@ -85,6 +94,11 @@ public class VelocityEssentialsBackend extends JavaPlugin {
         if (afkManager != null) {
             afkManager.shutdown();
         }
+
+        if (restartHandler != null) {
+            restartHandler.shutdown();
+        }
+
         getServer().getMessenger().unregisterIncomingPluginChannel(this);
         getServer().getMessenger().unregisterOutgoingPluginChannel(this);
         getLogger().info("VelocityEssentials Backend disabled!");
@@ -97,6 +111,10 @@ public class VelocityEssentialsBackend extends JavaPlugin {
 
     public AFKManager getAFKManager() {
         return afkManager;
+    }
+
+    public RestartHandler getRestartHandler() {
+        return restartHandler;
     }
     
     // === VANILLA MESSAGE SUPPRESSION ===
@@ -158,6 +176,11 @@ public class VelocityEssentialsBackend extends JavaPlugin {
                 case "network_afk" -> handleNetworkAFK(in);
                 case "network_afk_message" -> handleNetworkAFKWithMessage(in);
                 case "test" -> handleTest(in);
+                case "restart_warning" -> handleRestartWarning(in);
+                case "restart_command" -> handleRestartCommand(in);
+                case "restart_shutdown" -> handleRestartShutdown();
+                case "restart_cancel" -> handleRestartCancel(in);
+                case "restart_test" -> handleRestartTest(in);
             }
         }
         
@@ -236,6 +259,60 @@ public class VelocityEssentialsBackend extends JavaPlugin {
             plugin.getLogger().info("Test message: " + testMessage);
             
             Component broadcast = Component.text("[VE Test] " + testMessage)
+                .color(NamedTextColor.AQUA);
+            Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(broadcast));
+        }
+
+        private void handleRestartWarning(ByteArrayDataInput in) {
+            int secondsUntilRestart = in.readInt();
+            String soundName = in.readUTF();
+            
+            if (plugin.getRestartHandler() != null) {
+                plugin.getRestartHandler().handleWarning(secondsUntilRestart, soundName);
+            }
+            
+            if (plugin.debug) {
+                plugin.getLogger().info("Restart warning: " + secondsUntilRestart + "s");
+            }
+        }
+
+        private void handleRestartCommand(ByteArrayDataInput in) {
+            String command = in.readUTF();
+            
+            if (plugin.getRestartHandler() != null) {
+                plugin.getRestartHandler().executeCommand(command);
+            }
+            
+            if (plugin.debug) {
+                plugin.getLogger().info("Restart command: " + command);
+            }
+        }
+
+        private void handleRestartShutdown() {
+            if (plugin.getRestartHandler() != null) {
+                plugin.getRestartHandler().initiateShutdown();
+            }
+            
+            plugin.getLogger().warning("Shutdown signal received from proxy!");
+        }
+
+        private void handleRestartCancel(ByteArrayDataInput in) {
+            String reason = in.readUTF();
+            
+            if (plugin.getRestartHandler() != null) {
+                plugin.getRestartHandler().handleCancel(reason);
+            }
+            
+            if (plugin.debug) {
+                plugin.getLogger().info("Restart cancelled: " + reason);
+            }
+        }
+
+        private void handleRestartTest(ByteArrayDataInput in) {
+            String testMessage = in.readUTF();
+            plugin.getLogger().info("Restart test message: " + testMessage);
+            
+            Component broadcast = Component.text("[Restart Test] " + testMessage)
                 .color(NamedTextColor.AQUA);
             Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(broadcast));
         }

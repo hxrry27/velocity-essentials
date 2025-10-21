@@ -11,6 +11,7 @@ import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import com.velocitypowered.api.command.CommandMeta;
 import com.velocityessentials.commands.EventCommand;
 import com.velocityessentials.commands.MainCommand;
+import com.velocityessentials.commands.RestartCommand;
 import com.velocityessentials.config.Config;
 import com.velocityessentials.database.Database;
 import com.velocityessentials.database.PlayerData;
@@ -20,9 +21,12 @@ import com.velocityessentials.listeners.ServerSwitchListener;
 import com.velocityessentials.modules.afk.AFKHandler;
 import com.velocityessentials.modules.discord.DiscordWebhook;
 import com.velocityessentials.modules.messages.MessageHandler;
+import com.velocityessentials.modules.restart.RestartScheduler;
 import com.velocityessentials.utils.PlayerTracker;
 import com.velocityessentials.stats.StatsSystem;
 import com.velocityessentials.stats.StatsAPIHandler;
+import com.velocityessentials.modules.restart.RestartScheduler;
+import com.velocityessentials.commands.RestartCommand;
 
 import org.slf4j.Logger;
 
@@ -56,6 +60,7 @@ public class VelocityEssentials {
     private MessageHandler messageHandler;
     private StatsSystem statsSystem;
     private StatsAPIHandler statsAPI;
+    private RestartScheduler restartScheduler;
     
     // Plugin messaging channel
     public static final MinecraftChannelIdentifier CHANNEL = MinecraftChannelIdentifier.from("velocityessentials:main");
@@ -143,6 +148,21 @@ public class VelocityEssentials {
             }
         }
 
+        // Initialize restart system if enabled
+        if (config.isAutoRestartEnabled()) {
+            restartScheduler = new RestartScheduler(this);
+            logger.info("Restart scheduler initialized");
+        }
+
+        // Register restart command
+        CommandMeta restartMeta = server.getCommandManager()
+            .metaBuilder("restart")
+            .aliases("autorestart", "schedulerestart")
+            .plugin(this)
+            .build();
+
+        server.getCommandManager().register(restartMeta, new RestartCommand(this));
+
         // Schedule cleanup task
         server.getScheduler()
             .buildTask(this, () -> playerData.cleanupOldEntries())
@@ -167,6 +187,10 @@ public class VelocityEssentials {
         
         if (statsSystem != null) {
             statsSystem.shutdown();
+        }
+
+        if (restartScheduler != null) {
+            restartScheduler.shutdown();
         }
 
         logger.info("VelocityEssentials has been disabled!");
@@ -224,5 +248,9 @@ public class VelocityEssentials {
 
     public AFKHandler getAFKHandler() {
         return afkHandler;
+    }
+
+    public RestartScheduler getRestartScheduler() {
+        return restartScheduler;
     }
 }

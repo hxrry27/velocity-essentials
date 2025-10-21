@@ -196,6 +196,96 @@ events:
     # Admin permission (all event actions)
     admin: "velocityessentials.events.admin"
 
+# ===== AUTO-RESTART SYSTEM =====
+auto-restart:
+  # Enable the auto-restart system
+  enabled: true
+  
+  # Timezone for scheduling (e.g., "UTC", "America/New_York", "Europe/London")
+  timezone: "UTC"
+  
+  # How often to check if a delayed restart can proceed (seconds)
+  delay-check-interval: 60
+  
+  # ===== RESTART SCHEDULES =====
+  schedules:
+    # Daily 4 AM restart for main servers
+    daily-restart:
+      enabled: true
+      
+      # Which servers to restart
+      servers:
+        - "smp"
+        - "resource"
+      
+      # Time in 24-hour format (HH:mm)
+      time: "04:00"
+      
+      # Days to run (* = every day, or specific days: ["MONDAY", "FRIDAY"])
+      days: ["*"]
+      
+      # Minimum players to delay restart (0 = never delay)
+      min-players-delay: 5
+      
+      # Warning configuration
+      warnings:
+        # Intervals in seconds to send warnings
+        intervals: [300, 180, 60, 30, 10]
+        
+        # Sound to play (Minecraft sound name)
+        sound: "ENTITY_EXPERIENCE_ORB_PICKUP"
+      
+      # Commands to run before/after restart
+      commands:
+        before:
+          # Save world 10 seconds before restart
+          - delay: 10
+            command: "save-all"
+            target: "server"
+          
+          # Kick all players 5 seconds before restart
+          - delay: 5
+            command: "kickall §cServer restarting..."
+            target: "server"
+        
+        after:
+          # Announce server is back (30 seconds after restart)
+          - delay: 30
+            command: "say Server has restarted!"
+            target: "server"
+    
+    # Weekly maintenance restart (example)
+    weekly-maintenance:
+      enabled: false
+      
+      servers:
+        - "smp"
+        - "resource"
+        - "creative"
+      
+      time: "12:00"
+      days: ["SUNDAY"]
+      
+      min-players-delay: 3
+      
+      warnings:
+        intervals: [600, 300, 180, 60, 30, 10]
+        sound: "ENTITY_WITHER_SPAWN"
+      
+      commands:
+        before:
+          - delay: 30
+            command: "save-all"
+            target: "server"
+          - delay: 10
+            command: "kickall §6Weekly Maintenance - Back in 5 minutes!"
+            target: "server"
+        
+        after:
+          - delay: 60
+            command: "say §a§lMaintenance complete! Thanks for your patience."
+            target: "server"
+
 # Debug mode - shows extra logging
 debug: false
 
