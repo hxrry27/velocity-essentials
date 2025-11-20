@@ -2,71 +2,47 @@
 
 # Database settings
 database:
-  # SQLite database file will be created in the plugin folder
-  # No configuration needed! Just works out of the box.
-  type: "sqlite"
+  type: "sqlite" # DO NOT CHANGE
 
 # ===== SERVER MEMORY SETTINGS =====
 server-memory:
-  # Enable server memory feature
   enabled: true
-  
-  # Server to send players to if their last server is unavailable
   fallback-server: "lobby"
-  
-  # Where to send first-time players
   first-join-server: "lobby"
-  
-  # How many days to remember player's last server
-  remember-days: 30
-  
+  remember-days: 30  
   # Servers that should not be remembered (temp servers, event servers, etc)
   blacklisted-servers:
     - "event"
     - "temp"
-  
-  # Permission to bypass server memory (always go to fallback)
   bypass-permission: "velocityessentials.bypass"
+
+# ===== CHAT RELAY SETTINGS =====
+chat:
+  # server display name mapping maps internal velocity server names to display names for chat
+  server-display-names:
+    lobby: "Lobby"
+    server1: "Server 1"
+    server2: "Server 2"
+  show-server-tag: true
+  server-tag-format: "<gray>[<aqua>{server}</aqua>]</gray>"
 
 # ===== DISCORD SETTINGS =====
 discord:
-  # Enable Discord webhooks
   enabled: false
-  
-  # Webhook URL from Discord channel settings
   webhook-url: ""
-  
-  # Custom webhook appearance (leave empty for defaults)
   username: "VelocityEssentials"
   avatar-url: ""
-  
-  # Show "joined for the first time!" messages
   show-first-time: true
-  
-  # Which server should trigger first-time announcements
   first-time-server: "lobby"
-
-  # Whether to share afk messages in discord chat
   show-afk: true
   
-  # ===== chat relay =====
-  # Enable chat relay to Discord
+  # discord chat relay (separate from in-game chat relay above)
   chat-relay: true
-  
-  # Use player's Minecraft head as webhook avatar for each chat message
-  # If false, uses the main webhook avatar for all messages
   use-player-head-for-chat: true
-  
-  # Show which server the message is from
   chat-show-server: false
-  
-  # Format for server prefix (if enabled)
   chat-server-format: "[{server}]"
   
-  # Permission-based prefixes for chat
-  # Format: "permission.node": "prefix"
-  # First matching permission will be used
-  # You can use Discord markdown: ** for bold, __ for underline, etc.
+  # permission-based prefixes for discord
   chat-prefixes:
     "group.owner": "**Owner**"
     "group.admin": "**Admin**"
@@ -75,203 +51,107 @@ discord:
     "group.vip+": "**VIP+**"
     "group.vip": "**VIP**"
     "group.supporter": "**Supporter**"
-    # Add more as needed
-    # You can also use specific permissions:
     "velocityessentials.prefix.developer": "**Dev**"
     "velocityessentials.prefix.builder": "**Builder**"
 
-# ===== IN GAME MESSAGE SETTINGS =====
+# ===== IN-GAME NETWORK MESSAGES =====
 messages:
-  # Enable custom in-game messages (requires backend plugin)
   custom-enabled: true
-  
-  # Individual message type toggles
-  show-join: true       # Show join messages
-  show-leave: true      # Show leave messages  
-  show-switch: true     # Show server switch messages
-  show-first-time: true # Show first-time join messages
-  
-  # Suppress vanilla messages when custom messages are enabled
+  show-join: true
+  show-leave: true
+  show-switch: true
+  show-first-time: true
   suppress-vanilla: true
-  
-  # Message prefix
   prefix: "<gray>[<aqua>VE<gray>]</aqua>"
   
-  # Message templates
+  # message templates (using minimessage)
   no-permission: "{prefix} <red>You don't have permission!"
   sending-to-last-server: "{prefix} <green>Sending you to your last server: <yellow>{server}"
   sending-to-fallback: "{prefix} <yellow>Sending you to the fallback server"
   first-join: "{prefix} <green>Welcome to the network!"
 
-# ===== STATS SYSTEM CONFIGURATION =====
+# ===== STATS SYSTEM =====
 stats:
-  # Enable the stats system
   enabled: true
-  
-  # Update interval in minutes (how often to read stat files)
-  # Recommended: 30 minutes for production, 5 minutes for testing
   update-interval: 30
-  
-  # Server stat paths - ADJUST THESE TO YOUR ACTUAL SERVER PATHS
-  # Map each server name to its stats directory
-  # The path should point to the world/stats directory
   servers:
-    # Survival server - main SMP world
     survival: "/path/to/your/survival/world/stats"
-    # Resource server - mining/resource world
     resource: "/path/to/your/resource/world/stats"
-    # Creative server (optional - uncomment if you want creative stats)
-    # creative: "/path/to/your/creative/world/stats"
-    
-    # Examples for different setups:
-    # If using Pterodactyl Panel:
-    # survival: "/home/container/survival/world/stats"
-    # resource: "/home/container/resource/world/stats"
-    
-    # If using MultiPaper or similar:
-    # survival: "/servers/survival/world/stats"
-    # resource: "/servers/resource/world/stats"
-    
-    # If servers are on different machines, you might need to use network mounts
-    # survival: "/mnt/survival-server/world/stats"
-    # resource: "/mnt/resource-server/world/stats"
   
-  # API Configuration (for web integration)
   api:
-    # Enable REST API for website integration
     enabled: true
-    
-    # Port to listen on
     port: 8080
-    
-    # Bind address 
-    # Use 0.0.0.0 to allow external connections (for website)
-    # Use 127.0.0.1 for localhost only (if website is on same server)
     bind: "0.0.0.0"
-    
-    # API authentication key - CHANGE THIS TO SOMETHING SECURE!
-    # This should match NEXT_PUBLIC_STATS_API_KEY in your website .env file
-    auth-key: "vale-smp-stats-key-2025-change-this"
+    auth-key: "stats-key-2025-change-this"
   
-  # Awards/Achievements Processing
   awards:
-    # Process awards in the plugin (recommended)
     process-locally: true
-    
-    # How often to calculate awards (minutes)
     calculation-interval: 60
-    
-    # Award categories to track
     categories:
-      - "time"        # Play time, time since death, etc.
-      - "distance"    # Walking, sprinting, flying distances
-      - "mining"      # Blocks mined, ores found
-      - "building"    # Blocks placed, items crafted
-      - "combat"      # Mobs killed, damage dealt/taken
-      - "survival"    # Deaths, damage avoided
-      - "fishing"     # Fish caught, treasure found
-      - "farming"     # Animals bred, crops harvested
-      - "exploration" # Biomes visited, structures found
+      - "time"
+      - "distance"
+      - "mining"
+      - "building"
+      - "combat"
+      - "survival"
+      - "fishing"
+      - "farming"
+      - "exploration"
 
 # ===== EVENTS SYSTEM =====
-# Events are competitions that track specific stats over time periods
 events:
-  # Enable events system
   enabled: true
-  
-  # Default event duration if not specified (in days)
   default-duration: 7
-  
-  # Maximum number of active events at once
   max-active-events: 3
-  
-  # Permissions for event management
   permissions:
-    # Permission to create events
     create: "velocityessentials.events.create"
-    # Permission to manage (start/stop/delete) events
     manage: "velocityessentials.events.manage"
-    # Permission to view all events
     view: "velocityessentials.events.view"
-    # Admin permission (all event actions)
     admin: "velocityessentials.events.admin"
 
 # ===== AUTO-RESTART SYSTEM =====
 auto-restart:
-  # Enable the auto-restart system
   enabled: true
-  
-  # Timezone for scheduling (e.g., "UTC", "America/New_York", "Europe/London")
   timezone: "UTC"
-  
-  # How often to check if a delayed restart can proceed (seconds)
   delay-check-interval: 60
   
-  # ===== RESTART SCHEDULES =====
   schedules:
-    # Daily 4 AM restart for main servers
     daily-restart:
       enabled: true
-      
-      # Which servers to restart
       servers:
         - "smp"
         - "resource"
-      
-      # Time in 24-hour format (HH:mm)
       time: "04:00"
-      
-      # Days to run (* = every day, or specific days: ["MONDAY", "FRIDAY"])
       days: ["*"]
-      
-      # Minimum players to delay restart (0 = never delay)
       min-players-delay: 5
-      
-      # Warning configuration
       warnings:
-        # Intervals in seconds to send warnings
         intervals: [300, 180, 60, 30, 10]
-        
-        # Sound to play (Minecraft sound name)
         sound: "ENTITY_EXPERIENCE_ORB_PICKUP"
-      
-      # Commands to run before/after restart
       commands:
         before:
-          # Save world 10 seconds before restart
           - delay: 10
             command: "save-all"
             target: "server"
-          
-          # Kick all players 5 seconds before restart
           - delay: 5
             command: "kickall §cServer restarting..."
             target: "server"
-        
         after:
-          # Announce server is back (30 seconds after restart)
           - delay: 30
             command: "say Server has restarted!"
             target: "server"
     
-    # Weekly maintenance restart (example)
     weekly-maintenance:
       enabled: false
-      
       servers:
         - "smp"
         - "resource"
         - "creative"
-      
       time: "12:00"
       days: ["SUNDAY"]
-      
       min-players-delay: 3
-      
       warnings:
         intervals: [600, 300, 180, 60, 30, 10]
         sound: "ENTITY_WITHER_SPAWN"
-      
       commands:
         before:
           - delay: 30
@@ -280,37 +160,10 @@ auto-restart:
           - delay: 10
             command: "kickall §6Weekly Maintenance - Back in 5 minutes!"
             target: "server"
-        
         after:
           - delay: 60
             command: "say §a§lMaintenance complete! Thanks for your patience."
             target: "server"
 
-# Debug mode - shows extra logging
+# Debug mode
 debug: false
-
-# ===== EXAMPLE CONFIGURATION FOR DIFFERENT SETUPS =====
-
-# Example 1: Single machine with multiple server folders
-# stats:
-#   servers:
-#     survival: "/minecraft/servers/survival/world/stats"
-#     resource: "/minecraft/servers/resource/world/stats"
-
-# Example 2: Docker/Pterodactyl setup
-# stats:
-#   servers:
-#     survival: "/home/container/survival/world/stats" 
-#     resource: "/home/container/resource/world/stats"
-
-# Example 3: Network mounted drives (servers on different machines)
-# stats:
-#   servers:
-#     survival: "/mnt/nfs/survival-server/world/stats"
-#     resource: "/mnt/nfs/resource-server/world/stats"
-
-# Example 4: Windows setup
-# stats:
-#   servers:
-#     survival: "C:\\Minecraft\\Servers\\Survival\\world\\stats"
-#     resource: "C:\\Minecraft\\Servers\\Resource\\world\\stats"

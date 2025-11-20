@@ -4,6 +4,7 @@ import com.velocityessentials.VelocityEssentials;
 import com.velocityessentials.modules.restart.data.RestartSchedule;
 import com.velocityessentials.modules.restart.RestartUtil;
 import org.spongepowered.configurate.CommentedConfigurationNode;
+import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
 import java.io.InputStream;
@@ -435,5 +436,37 @@ public class Config {
         }
         
         return message;
+    }
+
+    public Map<String, String> getServerDisplayNames() {
+        try {
+            ConfigurationNode chatNode = rootNode.node("chat", "server-display-names");
+            Map<String, String> displayNames = new HashMap<>();
+            
+            if (!chatNode.virtual()) {
+                chatNode.childrenMap().forEach((key, value) -> {
+                    displayNames.put(key.toString(), value.getString(""));
+                });
+            }
+            
+            return displayNames;
+        } catch (Exception e) {
+            plugin.getLogger().error("error loading server display names", e);
+            return new HashMap<>();
+        }
+    }
+
+    public boolean isShowServerTag() {
+        return rootNode.node("chat", "show-server-tag").getBoolean(true);
+    }
+
+    public String getServerTagFormat() {
+        return rootNode.node("chat", "server-tag-format")
+            .getString("<gray>[<aqua>{server}</aqua>]</gray>");
+    }
+
+    public String getServerDisplayName(String serverName) {
+        String displayName = getServerDisplayNames().get(serverName);
+        return displayName != null && !displayName.isEmpty() ? displayName : serverName;
     }
 }

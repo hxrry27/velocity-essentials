@@ -12,6 +12,9 @@ import com.velocitypowered.api.command.CommandMeta;
 import com.velocityessentials.commands.EventCommand;
 import com.velocityessentials.commands.MainCommand;
 import com.velocityessentials.commands.RestartCommand;
+import com.velocityessentials.commands.MuteCommand;
+import com.velocityessentials.commands.UnmuteCommand;
+import com.velocityessentials.modules.moderation.MuteData;
 import com.velocityessentials.config.Config;
 import com.velocityessentials.database.Database;
 import com.velocityessentials.database.PlayerData;
@@ -59,6 +62,7 @@ public class VelocityEssentials {
     private StatsSystem statsSystem;
     private StatsAPIHandler statsAPI;
     private RestartScheduler restartScheduler;
+    private MuteData muteData;
     
     // Plugin messaging channel
     public static final MinecraftChannelIdentifier CHANNEL = MinecraftChannelIdentifier.from("velocityessentials:main");
@@ -91,10 +95,12 @@ public class VelocityEssentials {
 
         // Initialize components
         playerData = new PlayerData(this);
+        muteData = new MuteData(this, database);  // ADD THIS LINE
         playerTracker = new PlayerTracker(this);
         discordWebhook = new DiscordWebhook(this);
         messageHandler = new MessageHandler(this);
         afkHandler = new AFKHandler(this);
+
         
         // Register plugin messaging channel
         server.getChannelRegistrar().register(CHANNEL);
@@ -114,6 +120,10 @@ public class VelocityEssentials {
         
         // Register main command
         server.getCommandManager().register(commandMeta, new MainCommand(this));
+        
+        // Register mute commands - ADD THESE LINES
+        server.getCommandManager().register("mute", new MuteCommand(this, muteData));
+        server.getCommandManager().register("unmute", new UnmuteCommand(this, muteData));
         
         // Initialize stats system if enabled
         if (config.isStatsEnabled()) {

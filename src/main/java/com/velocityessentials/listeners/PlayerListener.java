@@ -24,19 +24,19 @@ public class PlayerListener {
     public void onPlayerChooseInitialServer(PlayerChooseInitialServerEvent event) {
         Player player = event.getPlayer();
         
-        // Check for server switch (player reconnecting quickly)
+        // check for server switch (player reconnecting quickly) - not ideal, but presumably a server swap will always be faster than someone timing out and logging back in
         PlayerTracker.DisconnectInfo switchInfo = plugin.getPlayerTracker().checkForSwitch(player);
         
         if (switchInfo != null) {
-            // This is a server switch, not a real join
+            // this is a server switch, not a real join
             if (plugin.getConfig().isDebug()) {
                 plugin.getLogger().info(player.getUsername() + " is switching servers, not a real join");
             }
-            // The ServerSwitchListener will handle this
+            // the ServerSwitchListener will handle this
             return;
         }
         
-        // Determine initial server
+        // determine initial server
         RegisteredServer targetServer = determineInitialServer(player);
         if (targetServer != null) {
             event.setInitialServer(targetServer);
@@ -47,22 +47,25 @@ public class PlayerListener {
     public void onPlayerDisconnect(DisconnectEvent event) {
         Player player = event.getPlayer();
         
-        // Get their current server
+        // get their current server
         player.getCurrentServer().ifPresent(connection -> {
             RegisteredServer server = connection.getServer();
             
-            // Record the disconnect for switch detection
+            // record the disconnect for switch detection
             plugin.getPlayerTracker().recordDisconnect(player, server);
             
-            // Schedule the actual leave notification after switch detection delay
+            // schedule the actual leave notification after switch detection delay
             plugin.getServer().getScheduler()
                 .buildTask(plugin, () -> {
-                    // Check if they reconnected (would have been removed by PlayerChooseInitialServerEvent)
+                    // check if they reconnected (would have been removed by PlayerChooseInitialServerEvent)
                     PlayerTracker.DisconnectInfo info = plugin.getPlayerTracker().getAndRemoveDisconnect(player.getUniqueId());
                     
                     if (info != null) {
-                        // Real leave - send network_leave
-                        String message = "§8[§c-§8] §c" + player.getUsername() + " §eleft the game";
+                        // real leave - send network_leave with minimessage format
+                        String message = String.format(
+                            "<dark_gray>[<red>-</red>]</dark_gray> <red>%s</red> <yellow>left the game</yellow>",
+                            player.getUsername()
+                        );
                         
                         if (plugin.getConfig().isDiscordEnabled()) {
                             plugin.getDiscordWebhook().sendLeaveMessage(player, server);
@@ -72,7 +75,7 @@ public class PlayerListener {
                             player.getUsername(), server.getServerInfo().getName(), message);
                     }
                 })
-                .delay(1100, TimeUnit.MILLISECONDS) // Slightly longer than switch detection delay
+                .delay(1100, TimeUnit.MILLISECONDS)
                 .schedule();
         });
     }

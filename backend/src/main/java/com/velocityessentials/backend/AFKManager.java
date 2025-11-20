@@ -13,6 +13,7 @@ import org.bukkit.scheduler.BukkitTask;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -202,18 +203,31 @@ public class AFKManager implements Listener {
         if (isAfk) {
             if (manual) {
                 if (message != null && !message.isEmpty()) {
-                    displayMessage = "§7* §e" + playerName + " §7is now AFK: §f" + message;
+                    displayMessage = String.format(
+                        "<gray>* <yellow>%s</yellow> <gray>is now AFK: <white>%s</white>",
+                        playerName, message
+                    );
                 } else {
-                    displayMessage = "§7* §e" + playerName + " §7is now AFK";
+                    displayMessage = String.format(
+                        "<gray>* <yellow>%s</yellow> <gray>is now AFK",
+                        playerName
+                    );
                 }
             } else {
-                displayMessage = "§7* §e" + playerName + " §7has gone AFK";
+                displayMessage = String.format(
+                    "<gray>* <yellow>%s</yellow> <gray>has gone AFK",
+                    playerName
+                );
             }
         } else {
-            displayMessage = "§7* §e" + playerName + " §7is no longer AFK";
+            displayMessage = String.format(
+                "<gray>* <yellow>%s</yellow> <gray>is no longer AFK",
+                playerName
+            );
         }
         
-        Component component = Component.text(displayMessage);
+        // parse minimessage and send to all players
+        Component component = MiniMessage.miniMessage().deserialize(displayMessage);
         Bukkit.getOnlinePlayers().forEach(p -> p.sendMessage(component));
     }
 

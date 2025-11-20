@@ -1,11 +1,20 @@
 package com.velocityessentials.backend;
 
 import com.velocityessentials.backend.commands.AFKCommand;
+import com.velocityessentials.backend.restart.RestartHandler;
+import com.velocityessentials.backend.chat.ChatRelay;
+import com.velocityessentials.backend.chat.ChannelManager;    
+import com.velocityessentials.backend.chat.MuteManager;
+import com.velocityessentials.backend.commands.ChatCommand;      
+
 import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
+
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -17,8 +26,9 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
+
 import me.clip.placeholderapi.PlaceholderAPI;
-import com.velocityessentials.backend.restart.RestartHandler;
+import java.util.UUID;
 
 public class VelocityEssentialsBackend extends JavaPlugin {
     public static final String CHANNEL = "velocityessentials:main";
@@ -28,15 +38,17 @@ public class VelocityEssentialsBackend extends JavaPlugin {
 
     private AFKManager afkManager;
     private RestartHandler restartHandler;
+    private ChatRelay chatRelay;              
+    private ChannelManager channelManager;     
+    private MuteManager muteManager;     
     
     @Override
     public void onEnable() {
-        // Save default config
+        // save default config
         saveDefaultConfig();
         loadConfiguration();
         
         // === SYSTEM 1: VANILLA MESSAGE SUPPRESSION ===
-        // Simple, standalone system, NOT conditional on network messaging anymore
         if (getConfig().getBoolean("suppress-vanilla-join", false) || 
             getConfig().getBoolean("suppress-vanilla-quit", false)) {
             
@@ -47,17 +59,24 @@ public class VelocityEssentialsBackend extends JavaPlugin {
         }
         
         // === SYSTEM 2: NETWORK MESSAGING ===  
-        // Separate system from vanilla message supression for receiving custom messages from Velocity
         if (getConfig().getBoolean("enable-network-messages", true)) {
             getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, new NetworkMessageHandler(this));
             getLogger().info("Network messaging enabled");
         }
         
         // === SYSTEM 3: CHAT RELAY ===
-        if (getConfig().getBoolean("enable-chat-processing", false)) {
+        if (getConfig().getBoolean("chat.enabled", true)) {
             getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
-            getServer().getPluginManager().registerEvents(new ChatProcessor(this), this);
-            getLogger().info("Chat processing enabled");
+            chatRelay = new ChatRelay(this);
+            channelManager = chatRelay.getChannelManager();
+            muteManager = chatRelay.getMuteManager();
+            getServer().getPluginManager().registerEvents(chatRelay, this);
+            
+            // register /chat command
+            getCommand("chat").setExecutor(new ChatCommand(this));
+            getCommand("chat").setTabCompleter(new ChatCommand(this));
+            
+            getLogger().info("Chat relay enabled - messages will be sent to velocity");
         }
 
         // === SYSTEM 4: AFK MANAGER ===
@@ -65,7 +84,7 @@ public class VelocityEssentialsBackend extends JavaPlugin {
             getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
             afkManager = new AFKManager(this);
             
-            // Register /afk command
+            // register /afk command
             getCommand("afk").setExecutor(new AFKCommand(this, afkManager));
             getCommand("afk").setAliases(java.util.List.of("away"));
             
@@ -79,8 +98,7 @@ public class VelocityEssentialsBackend extends JavaPlugin {
             getLogger().info("Restart Handler enabled");
         }
         
-        // Check for PlaceholderAPI if chat processing is enabled
-        if (getConfig().getBoolean("enable-chat-processing", false) && 
+        if (getConfig().getBoolean("chat.enabled", true) && 
             Bukkit.getPluginManager().getPlugin("PlaceholderAPI") == null) {
             getLogger().warning("PlaceholderAPI not found! Chat formatting will not work properly.");
         }
@@ -115,6 +133,18 @@ public class VelocityEssentialsBackend extends JavaPlugin {
 
     public RestartHandler getRestartHandler() {
         return restartHandler;
+    }
+
+    public ChatRelay getChatRelay() {
+        return chatRelay;
+    }
+    
+    public ChannelManager getChannelManager() {
+        return channelManager;
+    }
+    
+    public MuteManager getMuteManager() {
+        return muteManager;
     }
     
     // === VANILLA MESSAGE SUPPRESSION ===
@@ -153,9 +183,11 @@ public class VelocityEssentialsBackend extends JavaPlugin {
     // === NETWORK MESSAGE HANDLER ===
     public static class NetworkMessageHandler implements PluginMessageListener {
         private final VelocityEssentialsBackend plugin;
+        private final MiniMessage miniMessage;
         
         public NetworkMessageHandler(VelocityEssentialsBackend plugin) {
             this.plugin = plugin;
+            this.miniMessage = MiniMessage.miniMessage();
         }
         
         @Override
@@ -173,8 +205,11 @@ public class VelocityEssentialsBackend extends JavaPlugin {
                 case "network_join" -> handleNetworkJoin(in);
                 case "network_leave" -> handleNetworkLeave(in);  
                 case "network_switch" -> handleNetworkSwitch(in);
+                case "network_chat" -> handleNetworkChat(in);
                 case "network_afk" -> handleNetworkAFK(in);
                 case "network_afk_message" -> handleNetworkAFKWithMessage(in);
+                case "mute_player" -> handleMutePlayer(in);
+                case "unmute_player" -> handleUnmutePlayer(in);
                 case "test" -> handleTest(in);
                 case "restart_warning" -> handleRestartWarning(in);
                 case "restart_command" -> handleRestartCommand(in);
@@ -187,40 +222,42 @@ public class VelocityEssentialsBackend extends JavaPlugin {
         private void handleNetworkJoin(ByteArrayDataInput in) {
             String playerName = in.readUTF();
             String serverName = in.readUTF();
-            String customMessage = in.readUTF();
+            String formattedMessage = in.readUTF();
             
-            // Broadcast custom message to all players on this server
-            Component message = Component.text(customMessage);
-            Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(message));
+            // parse minimessage and broadcast
+            Component message = miniMessage.deserialize(formattedMessage);
+            Bukkit.broadcast(message);
             
             if (plugin.debug) {
-                plugin.getLogger().info("Network join: " + playerName + " → " + serverName);
+                plugin.getLogger().info("network join: " + playerName + " on " + serverName);
             }
         }
         
         private void handleNetworkLeave(ByteArrayDataInput in) {
             String playerName = in.readUTF();
             String serverName = in.readUTF();
-            String customMessage = in.readUTF();
+            String formattedMessage = in.readUTF();
             
-            Component message = Component.text(customMessage);
-            Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(message));
+            // parse minimessage and broadcast
+            Component message = miniMessage.deserialize(formattedMessage);
+            Bukkit.broadcast(message);
             
             if (plugin.debug) {
-                plugin.getLogger().info("Network leave: " + playerName + " ← " + serverName);
+                plugin.getLogger().info("network leave: " + playerName + " from " + serverName);
             }
         }
         
         private void handleNetworkSwitch(ByteArrayDataInput in) {
             String playerName = in.readUTF();
-            String serverName = in.readUTF(); // New server they switched to
-            String customMessage = in.readUTF();
+            String serverName = in.readUTF();
+            String formattedMessage = in.readUTF();
             
-            Component message = Component.text(customMessage);
-            Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(message));
+            // parse minimessage and broadcast
+            Component message = miniMessage.deserialize(formattedMessage);
+            Bukkit.broadcast(message);
             
             if (plugin.debug) {
-                plugin.getLogger().info("Network switch: " + customMessage);
+                plugin.getLogger().info("network switch: " + playerName + " to " + serverName);
             }
         }
 
@@ -238,6 +275,56 @@ public class VelocityEssentialsBackend extends JavaPlugin {
             }
         }
 
+        private void handleNetworkChat(ByteArrayDataInput in) {
+            try {
+                String formattedMessage = in.readUTF();
+                String channelId = in.readUTF();  // NEW - read channel id
+                
+                if (plugin.debug) {
+                    plugin.getLogger().info("network chat raw [" + channelId + "]: " + formattedMessage);
+                }
+                
+                // parse minimessage
+                Component message = miniMessage.deserialize(formattedMessage);
+                
+                // get channel from manager
+                if (plugin.getChannelManager() != null) {
+                    com.velocityessentials.backend.chat.Channel channel = 
+                        plugin.getChannelManager().getChannel(channelId);
+                    
+                    if (channel != null && channel.hasReceivePermission()) {
+                        // filter by permission - only send to players who can see this channel
+                        String receivePermission = channel.getReceivePermission();
+                        
+                        int sent = 0;
+                        for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
+                            if (player.hasPermission(receivePermission)) {
+                                player.sendMessage(message);
+                                sent++;
+                            }
+                        }
+                        
+                        if (plugin.debug) {
+                            plugin.getLogger().info("network chat sent to " + sent + " players with permission");
+                        }
+                        
+                        return;
+                    }
+                }
+                
+                // no permission filtering - broadcast to all
+                Bukkit.broadcast(message);
+                
+                if (plugin.debug) {
+                    plugin.getLogger().info("network chat broadcasted to all players");
+                }
+                
+            } catch (Exception e) {
+                plugin.getLogger().warning("error handling network chat: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
         private void handleNetworkAFKWithMessage(ByteArrayDataInput in) {
             String playerName = in.readUTF();
             boolean isAfk = in.readBoolean();
@@ -252,15 +339,11 @@ public class VelocityEssentialsBackend extends JavaPlugin {
             if (plugin.debug) {
                 plugin.getLogger().info("Network AFK: " + playerName + " is " + (isAfk ? "now" : "no longer") + " AFK" + (afkMessage.isEmpty() ? "" : " (Message: " + afkMessage + ")"));
             }
-        }
+        }   
         
         private void handleTest(ByteArrayDataInput in) {
             String testMessage = in.readUTF();
-            plugin.getLogger().info("Test message: " + testMessage);
-            
-            Component broadcast = Component.text("[VE Test] " + testMessage)
-                .color(NamedTextColor.AQUA);
-            Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(broadcast));
+            plugin.getLogger().info("received test message: " + testMessage);
         }
 
         private void handleRestartWarning(ByteArrayDataInput in) {
@@ -316,58 +399,35 @@ public class VelocityEssentialsBackend extends JavaPlugin {
                 .color(NamedTextColor.AQUA);
             Bukkit.getOnlinePlayers().forEach(player -> player.sendMessage(broadcast));
         }
-    }
-    
-    // === CHAT PROCESSOR (Optional) ===
-    public static class ChatProcessor implements Listener {
-        private final VelocityEssentialsBackend plugin;
-        
-        public ChatProcessor(VelocityEssentialsBackend plugin) {
-            this.plugin = plugin;
-        }
-        
-        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-        public void onPlayerChat(AsyncPlayerChatEvent event) {
-            // Don't process if PlaceholderAPI isn't available
-            if (!Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) return;
-            
-            Player player = event.getPlayer();
-            
-            // Get formatted prefix from PlaceholderAPI
-            String prefix = PlaceholderAPI.setPlaceholders(player, "%playercustomisation_prefix%");
-            
-            if (plugin.debug) {
-                plugin.getLogger().info("Raw prefix from PAPI: '" + prefix + "'");
-            }
 
-            // Clean up prefix for Discord (remove color codes)
-            prefix = ChatColor.stripColor(prefix).trim();
+        private void handleMutePlayer(ByteArrayDataInput in) {
+            String uuidStr = in.readUTF();
+            String reason = in.readUTF();
+            long expiresAt = in.readLong();
             
-            // Convert [Prefix] to **Prefix** for Discord
-            if (prefix.startsWith("[") && prefix.endsWith("]")) {
-                prefix = "**" + prefix.substring(1, prefix.length() - 1) + "**";
-            } else if (!prefix.isEmpty()) {
-                prefix = "**" + prefix + "**";
-            }
-            
-            // Send to Velocity
-            ByteArrayDataOutput out = ByteStreams.newDataOutput();
-            out.writeUTF("chat");
-            out.writeUTF(player.getUniqueId().toString());
-            out.writeUTF(player.getName());
-            out.writeUTF(prefix);
-            out.writeUTF(event.getMessage());
-            out.writeUTF(plugin.serverName);
-            
-            // Send to any online player (plugin messaging requires a player)
-            if (!Bukkit.getOnlinePlayers().isEmpty()) {
-                Bukkit.getOnlinePlayers().iterator().next()
-                    .sendPluginMessage(plugin, CHANNEL, out.toByteArray());
+            if (plugin.getMuteManager() != null) {
+                UUID uuid = UUID.fromString(uuidStr);
+                plugin.getMuteManager().mute(uuid, reason, expiresAt);
                 
                 if (plugin.debug) {
-                    plugin.getLogger().info("Sent chat to Velocity: " + prefix + " " + player.getName() + ": " + event.getMessage());
+                    plugin.getLogger().info("received mute for: " + uuid + 
+                        (expiresAt == 0 ? " (permanent)" : " (temporary)"));
+                }
+            }
+        }
+
+        private void handleUnmutePlayer(ByteArrayDataInput in) {
+            String uuidStr = in.readUTF();
+            
+            if (plugin.getMuteManager() != null) {
+                UUID uuid = UUID.fromString(uuidStr);
+                plugin.getMuteManager().unmute(uuid);
+                
+                if (plugin.debug) {
+                    plugin.getLogger().info("received unmute for: " + uuid);
                 }
             }
         }
     }
+
 }

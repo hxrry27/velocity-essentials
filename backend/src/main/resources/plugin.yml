@@ -1,17 +1,23 @@
 name: VelocityEssentials-Backend
 version: ${project.version}
 main: com.velocityessentials.backend.VelocityEssentialsBackend
-api-version: "1.20"
+api-version: "1.21"
+load: STARTUP
+loadbefore:     # force us to load first
+  - ChatFeelings
 author: hxrry27
-description: Backend companion for VelocityEssentials
+description: Paper companion for VelocityEssentials
 softdepend: [PlaceholderAPI]
 
 commands:
   afk:
     description: Toggle AFK status or set AFK with a message
     usage: /<command> [message]
-    aliases: [away]
     permission: velocityessentials.afk
+  chat:
+    description: Manage chat channels
+    usage: /chat [channel|list]
+    aliases: [ch]
 
 permissions:
   velocityessentials.afk:

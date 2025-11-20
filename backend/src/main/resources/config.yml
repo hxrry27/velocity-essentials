@@ -2,11 +2,10 @@
 
 # ===== SERVER IDENTIFICATION =====
 # Server name - MUST match your Velocity server names exactly
-server-name: "smp"  # Change per server: "smp", "creative", "resource"
+server-name: "server"  # Change per server: "smp", "creative", "resource"
 
 # ===== VANILLA MESSAGE SUPPRESSION =====  
 # Simple on/off toggles - works just like EssentialsX or Custom Join Messages
-# These work independently of any other features
 suppress-vanilla-join: true   # Remove "Player joined the game" 
 suppress-vanilla-quit: true   # Remove "Player left the game"
 
@@ -14,45 +13,123 @@ suppress-vanilla-quit: true   # Remove "Player left the game"
 # Enable receiving custom messages from Velocity proxy
 enable-network-messages: true
 
-# ===== CHAT RELAY =====  
-# Enable chat processing for Discord integration
-enable-chat-processing: false
+# ===== CHAT =====
+chat:
+  enabled: true
+  send-to-velocity: true
+  use-placeholderapi: true
+  
+  # format for player display name (appears before message in chat)
+  # use any placeholders you define below
+  # examples:
+  #   "{prefix}{name}{suffix}" - standard format
+  #   "{prefix} {name}" - no suffix
+  #   "[{rank}] {name}" - show rank in brackets
+  #   "{prefix}{name} {level}" - include level
+  display-format: "{prefix}{name}{suffix}"
+  
+  # define placeholders using PlaceholderAPI
+  # you can use any PlaceholderAPI placeholder from any plugin
+  placeholders:
+    # basic placeholders
+    prefix: "%hxprefix_prefix%"
+    name: "%hxprefix_colour%%hxprefix_nickname%"
+    suffix: "%hxprefix_suffix%"
+    
+    # optional: add more custom placeholders
+    # rank: "%luckperms_primary_group%"
+    # level: "%player_level%"
+    # world: "%player_world%"
+  
+  # permission-based formatting (for message content)
+  permissions:
+    colors:
+      permission: "velocityessentials.chat.color"
+      default: true
+    gradients:
+      permission: "velocityessentials.chat.gradient"
+      default: false
+    rainbow:
+      permission: "velocityessentials.chat.rainbow"
+      default: false
+    minimessage:
+      permission: "velocityessentials.chat.minimessage"
+      default: false
+  
+  # ===== CHAT - CHANNELS =====
+  channels:
+    # global channel - cross-server chat (default)
+    global:
+      enabled: true
+      name: "Global"
+      permission: "velocityessentials.channel.global"
+      permission-required: false  # everyone can use by default
+      cross-server: true          # messages go to all servers
+      format: "{display}: {message}"
+      
+    # local channel - same server only
+    local:
+      enabled: true
+      name: "Local"
+      permission: "velocityessentials.channel.local"
+      permission-required: false
+      cross-server: false         # messages stay on same server
+      format: "<gray>[Local]</gray> {display}: {message}"
+      
+    # staff channel - cross-server staff chat
+    staff:
+      enabled: true
+      name: "Staff"
+      permission: "velocityessentials.channel.staff"
+      permission-required: true   # requires permission to use
+      cross-server: true
+      format: "<red>[Staff]</red> {display}: {message}"
+      receive-permission: "velocityessentials.channel.staff.see"  # who can see messages
+    
+    # admin channel - cross-server admin chat
+    admin:
+      enabled: false
+      name: "Admin"
+      permission: "velocityessentials.channel.admin"
+      permission-required: true
+      cross-server: true
+      format: "<dark_red>[Admin]</dark_red> {display}: {message}"
+      receive-permission: "velocityessentials.channel.admin.see"
+  
+  # default channel when player joins
+  default-channel: "global"
+  
+  # ===== CHAT - MODERATION =====
+  moderation:
+    # enable mute system
+    mutes:
+      enabled: true
+      
+      # message to send when muted player tries to chat
+      muted-message: "<red>You are muted and cannot send chat messages.</red>"
+      
+      # show mute reason to player
+      show-reason: true
+      
+      # sync mutes across all servers via velocity
+      sync-across-servers: true
 
 # ===== AFK SYSTEM =====
 afk:
-  # Enable AFK detection (mimics EssentialsX and other common afk systems)
   enabled: true
-  
-  # Time in seconds before a player is marked as AFK (default: 300 = 5 minutes)
   auto-afk-time: 300
-  
-  # Broadcast AFK status changes to chat
   broadcast: true
-  
-  # Cancel AFK on certain actions
   cancel-on-move: true
   cancel-on-interact: true
-  
-  # Exclude AFK players from sleep count (requires Paper/Purpur)
-  # This makes AFK players not count towards the players required to sleep
   exclude-from-sleep: true
   
-  # Kick settings for AFK players
   kick:
-    # Enable kicking AFK players
     enabled: false
-    
-    # Additional time in seconds after going AFK before kicking (default: 600 = 10 minutes)
-    # Total time = auto-afk-time + kick.time
     time: 600
-    
-    # Kick message
     message: "You have been kicked for being AFK too long!"
 
 # ===== AUTO RESTART SYSTEM =====
-# Controlled by Velocity proxy
 auto-restart:
-  # Enable restart handler (kill switch for this specific server)
   enabled: true
 
 # ===== DEBUG =====

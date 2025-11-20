@@ -74,8 +74,10 @@ public class ServerSwitchListener {
         
         plugin.getPlayerData().isFirstJoin(player.getUniqueId()).thenAccept(isFirstTime -> {
             String message = isFirstTime ?
-                "§8[§6★§8] §6" + player.getUsername() + " §ejoined for the first time!" :
-                "§8[§a+§8] §a" + player.getUsername() + " §ejoined the game";
+                String.format("<dark_gray>[<gold>★</gold>]</dark_gray> <gold>%s</gold> <yellow>joined for the first time!</yellow>",
+                    player.getUsername()) :
+                String.format("<dark_gray>[<green>+</green>]</dark_gray> <green>%s</green> <yellow>joined the game</yellow>",
+                    player.getUsername());
                 
             // Send to Discord
             if (plugin.getConfig().isDiscordEnabled()) {
@@ -87,10 +89,12 @@ public class ServerSwitchListener {
                 player.getUsername(), serverName, message);
         });
     }
-    
+
     private void handleServerSwitch(Player player, String fromServer, String toServer) {
-        String message = "§8[§6↔§8] §6" + player.getUsername() + 
-            " §eswitched servers: §f" + fromServer + " §7→ §f" + toServer;
+        String message = String.format(
+            "<dark_gray>[<gold>↔</gold>]</dark_gray> <gold>%s</gold> <yellow>switched servers: <white>%s</white> <gray>→</gray> <white>%s</white>",
+            player.getUsername(), fromServer, toServer
+        );
             
         // Send to Discord  
         if (plugin.getConfig().isDiscordEnabled()) {
